@@ -10,6 +10,8 @@
 
 #include <sys/mman.h>
 
+#include <stdbool.h>
+
 #define UINT(addr) (*(uint32_t*)(addr))
 
 const int THREAD_COUNT = 4;
@@ -21,6 +23,11 @@ void* trap_blk;
 void mem_acc_violation_handler(int sig);
 
 void* mem_access_activity(void* arg);
+
+struct ThreadArgs {
+	bool try_access;
+	int tid;
+};
 
 // clang -std=c99 -Wall -o memtrap memtrap.c
 
@@ -44,10 +51,16 @@ int main(int argc, char* argv[]) {
 	pthread_t tids[THREAD_COUNT];
 	// it's highly unsafe to pass ptr to locals into independent threads
 	// here we are using the fact that we are joining to them
-	uint32_t targs[THREAD_COUNT];
+	struct ThreadArgs targs[THREAD_COUNT];
 	memset(targs, 0, sizeof(targs));
-	targs[0] = 1;
+	
+	// marking thread which will try to perform protected page access
+	targs[0].try_access = true;
+	targs[1].try_access = true;
+	
 	for (int tidx = 0;tidx < THREAD_COUNT;tidx++) {
+		// using index as thread id
+		targs[tidx].tid = tidx;
 		int status = pthread_create(&tids[tidx], NULL, mem_access_activity, &targs[tidx]);
 		if (status != 0) {
 			fprintf(stderr, "thread creation failed: %s\n", strerror(status));
@@ -71,21 +84,26 @@ void mem_acc_violation_handler(int sig) {
 }
 
 void* mem_access_activity(void* arg) {
-	uint32_t perform_acc = *(uint32_t*)arg;
+	struct ThreadArgs targ = *(struct ThreadArgs*)arg;
 	
 	int ticks = 0, i = 0;
+	// recovery point
 	int recovered = sigsetjmp(sig_hdlr_env, 1);
 	while (i < 64) {
 		if (!recovered) {
 			int rnd_num = rand();
 			// sleep(1);
-			if (perform_acc && rnd_num % 11 == 0) {
+			if (targ.try_access && rnd_num % 37 == 0) {
+				printf("try mem acc tid: %d\n", targ.tid);
 				UINT(trap_blk) = 1;
 			} else {
 				ticks++;
 				// printf("tick\n");
 			}
 		} else {
+			// clearing recovery flag
+			// protected memory access was effectively skipped at this point
+			printf("mem acc fail tid: %d\n", targ.tid);
 			recovered = 0;
 		}
 		
