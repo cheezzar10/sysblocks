@@ -1,0 +1,4 @@
+day 1.
+
+learn segmented mode asm programming is dos environment 
+this will give as an ability to move to protected mode from real mode
