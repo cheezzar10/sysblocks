@@ -1,17 +1,13 @@
-CFLAGS=-Wall -marm -std=c99 -O0 -fno-builtin -fomit-frame-pointer
-CPPFLAGS=-I .
-EXECNAME=primos
+LDFLAGS := -Tlinker.ld
+EXEC := $(shell basename $(PWD))
 
-# linker command 
-
-$(EXECNAME): loader.o console.o init.o
-	$(LD) $^ $(LDFLAGS) -o $@
-
-init.o: init.c
-loader.o: loader.s
-console.o: console.s
+$(EXEC).bin: hello
+	objcopy -Obinary $^ $@
+$(EXEC): isr.o hello.o
+	$(LD) $(LDFLAGS) -o $@ $^
+hello.o: hello.s
+isr.o: isr.s
 
 .PHONY: clean
 clean:
-	rm -f *.o $(EXECNAME)
-
+	rm -f *.o *.bin $(EXEC)

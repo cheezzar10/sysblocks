@@ -2,3 +2,6 @@ day 1.
 
 learn segmented mode asm programming is dos environment 
 this will give as an ability to move to protected mode from real mode
+
+we can use only low part of intr service routine and fill high part with zeroes
+low part can be used literally and placed in .short size storage

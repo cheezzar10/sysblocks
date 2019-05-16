@@ -1,21 +1,31 @@
-ENTRY(init_start)
-
 SECTIONS {
-	. = 1M;
+	. = 32K;
 	
-	code : {
-		*(.text)
-	}
-	
-	data : {
+	.data : {
 		*(.data)
 	}
 	
-	bss : {
+	. = ALIGN(4K);
+
+	.isr : {
+		ISR_ADDR = .;
+		isr.o (.text)
+	}
+
+	ISR_ADDR_LO = ISR_ADDR & 0XFFFF;
+
+	. = ALIGN(4K);
+
+	.text : {
+		hello.o (.text)
+	}
+	
+	. = ALIGN(4K);
+
+	.bss : {
 		*(.bss)
-		BSS_END = .;
 		. = ALIGN(4K);
-		. = 128K;
+		. = 8K;
 		STACK_TOP = .;
 	}
 }
