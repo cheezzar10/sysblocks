@@ -24,3 +24,7 @@ after making filesystem i'll copy binary image and check fat contents. if it's s
 which use 512 byte buffer to load image on 32k boundary
 
 2. simplify system code, drop unnecessary strlen calls and don't use line increments. just keep current screen buffer counter
+
+floppy disk image file can be created using the following command
+
+# mkdosfs -n TCOS -C tcos.img -S 512 720
