@@ -8,3 +8,6 @@ low part can be used literally and placed in .short size storage
 
 GDT should be aligned on 8 byte boundary
 IDT should be also aligned on 8 byte
+
+the next step is to add C startup routine which will display message on the screen
+also, may be rodata section should be added to linker script to hold C constants
