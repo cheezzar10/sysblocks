@@ -5,3 +5,6 @@ this will give as an ability to move to protected mode from real mode
 
 we can use only low part of intr service routine and fill high part with zeroes
 low part can be used literally and placed in .short size storage
+
+GDT should be aligned on 8 byte boundary
+IDT should be also aligned on 8 byte

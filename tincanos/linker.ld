@@ -7,17 +7,8 @@ SECTIONS {
 	
 	. = ALIGN(4K);
 
-	.isr : {
-		ISR_ADDR = .;
-		isr.o (.text)
-	}
-
-	ISR_ADDR_LO = ISR_ADDR & 0XFFFF;
-
-	. = ALIGN(4K);
-
 	.text : {
-		hello.o (.text)
+		*(.text)
 	}
 	
 	. = ALIGN(4K);

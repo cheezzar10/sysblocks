@@ -1,13 +1,12 @@
 LDFLAGS := -Tlinker.ld
 EXEC := $(shell basename $(PWD))
 
-$(EXEC).bin: hello
+$(EXEC).img: $(EXEC)
 	objcopy -Obinary $^ $@
-$(EXEC): isr.o hello.o
+$(EXEC): init.o
 	$(LD) $(LDFLAGS) -o $@ $^
-hello.o: hello.s
-isr.o: isr.s
+init.o: init.s
 
 .PHONY: clean
 clean:
-	rm -f *.o *.bin $(EXEC)
+	rm -f *.o *.img $(EXEC)
