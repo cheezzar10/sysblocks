@@ -3,6 +3,8 @@ SECTIONS {
 	
 	.data : {
 		*(.data)
+		. = ALIGN(16);
+		*(.rodata)
 	}
 	
 	. = ALIGN(4K);

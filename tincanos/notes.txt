@@ -11,3 +11,8 @@ IDT should be also aligned on 8 byte
 
 the next step is to add C startup routine which will display message on the screen
 also, may be rodata section should be added to linker script to hold C constants
+
+various objdump use cases
+
+objdump -x (display all available header information)
+objdump -x -S (with disassembly)

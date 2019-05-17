@@ -69,6 +69,7 @@ init:
 # stack top pointer init
 
 # jump to sys code entry point
+call start
 
 dummy_isr:
 # returning immediately
