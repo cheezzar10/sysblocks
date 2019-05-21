@@ -28,3 +28,10 @@ which use 512 byte buffer to load image on 32k boundary
 floppy disk image file can be created using the following command
 
 # mkdosfs -n TCOS -C tcos.img -S 512 720
+
+after switching to protected mode it can be necessary to use floppy disk controller
+extensive documentation about floppy disk controller programming can be found by keyword 3F0h floppy disk controller
+
+not bad resource is the http://www.isdaman.com/alsos/hardware/fdc/floppy.htm
+
+also book Microprocessors, PC Hardware and interfacing contains useful information abount FDC/IDE programming
