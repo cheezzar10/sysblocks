@@ -4,6 +4,8 @@
 ; dos sample command
 ; nasm loader.asm -f bin -o loader.com
 ; after that you can 'dd' it to MBR
+; take a node that com file format assume 8 byte header at the start and 
+; we shoud take this into account when manupulating with data
 
 ; mbr header structure
 [section .data]

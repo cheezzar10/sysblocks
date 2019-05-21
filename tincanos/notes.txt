@@ -35,3 +35,6 @@ extensive documentation about floppy disk controller programming can be found by
 not bad resource is the http://www.isdaman.com/alsos/hardware/fdc/floppy.htm
 
 also book Microprocessors, PC Hardware and interfacing contains useful information abount FDC/IDE programming
+
+we should check offsets in generated binary and place far jump at the and of data section and then jump to it after init code completion
+this also means that we need to patch mbr start jump with fixed offset
