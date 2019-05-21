@@ -14,4 +14,10 @@ bstr_jmp: db 0ebh, 03ch, 90h
 [section .text]
 ; here we'll load image to memory
 ; switch to protected mode and jump to 32 bit image
-nop
+
+; encoding far jmp directly
+db 0ebh
+; binary image should be loaded on 32mb addr
+dw 8000h
+; code segment selector
+dw 08h
