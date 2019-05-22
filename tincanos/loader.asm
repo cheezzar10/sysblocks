@@ -10,10 +10,30 @@
 ; after that you can 'dd' it to MBR with offset relative to the start of cluster
 
 [section .text]
-; may be ds and ss registers shoud be initilized
 
-; load image to memory using int 13h services
-; read buffer start is 7e00h, buf size is one sector = 512 bytes
+; es register init required for image read buf
+mov ax, 0
+mov es, ax
+
+; loading image right at the 32kb origin
+
+; requesting read service 02h
+mov ah, 02h
+; trying to read 16 sectors at once
+mov al, 16
+; loading at 32kb 
+mov bx, 8000h
+; selecting track 0
+mov ch, 0
+; selecting start sector 2
+mov cl, 2
+; selecting head 0
+mov dh, 0
+; selecting drive 0
+mov dl, 0
+
+; reading binary image
+int 13h
 
 ; disabling iterrupts
 cli

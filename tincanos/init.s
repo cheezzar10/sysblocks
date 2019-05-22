@@ -66,7 +66,17 @@ idt:
 
 init:
 # stack and data segment initialization
-# stack top pointer init
+movw $0x10, %ax
+
+movw %ax, %ds
+movw %ax, %ss
+movw %ax, %es
+movw %ax, %gs
+movw %ax, %fs
+
+
+# stack top pointer init at 128kb
+movl $0x20000, %esp
 
 # jump to sys code entry point
 call start
