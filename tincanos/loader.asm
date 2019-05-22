@@ -1,62 +1,48 @@
 [bits 16]
-[org 7c00h]
+; actual memory offset should be 7c00 + mbr header length
+; right now i think that lgdt should use 16 bit displacement cause
+; we are not using memory operand instruction mode override prefix
+; but in case of any problems we can try to use 32 bit address
+[org 7c3eh]
 
 ; dos sample command
 ; nasm loader.asm -f bin -o loader.com
-; after that you can 'dd' it to MBR
-; take a node that com file format assume 8 byte header at the start and 
-; we shoud take this into account when manupulating with data
-
-; mbr header structure
-[section .data]
-
-; short jmp to to bootstrap code
-bstr_jmp: db 0ebh, 03ch, 90h
-; OS name and version which was used for filesystem creation
-os_ver: db 'osnamver'
-; 512 bytes per sector
-bts_per_sec: dw 200h
-; sectors per cluster
-sec_per_clst: db 1
-; reserved sectors count
-res_sec_cnt: dw 1
-; number of FAT copies
-fat_copies_count: db 2
-; number of root directory entries = 224
-; this number should be multiplied on 32 to calculate data offset location
-root_dir_entries: dw 0e0h
-; total sectors on disc = 2880
-total_sectors: dw 0b40h
-medium_type: db 0f0h
-; how many sectors reserved for each FAT
-sec_per_fat: dw 09h
-sec_per_track: dw 12h
-; drive heads count
-heads_cnt: dw 2
-; hidden sectors count
-hidded_sec_cnt: dw 0, 0
-; logical volume sectors count - for HDD only
-log_vol_sec_cnt: dw 0, 0
-; physical drive number
-drive_num: db 0
-; reserved byte
-res_bt: db 0
-; boot signature record
-boot_sig: db 29h
-; binary volume id
-vol_id: db 0e5h, 19h, 0e8h, 3bh
-; 10 byte volume label
-vol_lbl: db 'TINCANOS  '
-; 8 bytes reserved block
-res_blk: db ' FAT12   '
+; after that you can 'dd' it to MBR with offset relative to the start of cluster
 
 [section .text]
-; here we'll load image to memory
-; switch to protected mode and jump to 32 bit image
+; may be ds and ss registers shoud be initilized
 
+; load image to memory using int 13h services
+; read buffer start is 7e00h, buf size is one sector = 512 bytes
+
+; disabling iterrupts
+cli
+
+; may be NMI interrupts should be masked too
+
+; loading global descriptor table
+lgdt [lgdt_data]
+
+; set protection flag
+mov eax, cr0
+or eax, 1
+mov cr0, eax
+
+; interrupt vectors can be loaded after switch to protected mode
+
+[section .data]
+
+init_far_jmp:
 ; encoding far jmp directly
 db 0ebh
-; tables are on 32mb boundary, fix addr cause init code is higher in memory
-dw 8000h
+; tables are on 32kb + 4kb image code section alignment
+dw 9000h
 ; code segment selector
 dw 08h
+
+; after previous command execution processor should be in protected mode
+
+; GDT data - 3 entries including null descriptor, start address is 32k
+lgdt_data:
+dw 3
+dd 8000h
