@@ -39,15 +39,3 @@ also book Microprocessors, PC Hardware and interfacing contains useful informati
 we should check offsets in generated binary and place far jump at the and of data section and then jump to it after init code completion
 this also means that we need to patch mbr start jump with fixed offset
 
-the following sequence of commands should be made the part of the makefile
-also we should compile bootstrap 16 bit code using local nasm instead of freedos one
-
-tcos.img is the base image, simple 3.5 1.44 mp disk image
-
-cp tcos.img tincanos.img
-dd if=loader.com of=tincanos.img bs=1 count=53 seek=61
-dd if=tincanos.bin of=tincanos.img bs=512 seek=1
-
-the following command should use block count = size(tcos.img) - size(tincanos.img)
-dd if=/dev/zero of=zeroes bs=1 count=1469690
-cat tincanos.img zeroes > boot.img
