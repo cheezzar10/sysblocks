@@ -62,6 +62,9 @@ mov [es:di], ax
 cli
 
 ; may be NMI interrupts should be masked too
+in al, 70h
+or al, 80h
+out 70h, al
 
 ; loading global descriptor table
 lgdt [lgdt_data]
@@ -69,7 +72,7 @@ lgdt [lgdt_data]
 sgdt [gdt_test]
 
 ; 0x03, 0x00, 0x00, 0x80, 0x00, 0x00
-mov al, byte [gdt_test+5]
+mov al, byte [800eh]
 ; saving read sectors count
 mov dx, 0
 mov dl, al
@@ -112,11 +115,7 @@ mov cr0, eax
 
 init_far_jmp:
 ; encoding far jmp directly
-db 0ffh
-db 2eh
-dw 7c7ah
-
-
+db 0eah
 ; tables are on 32kb + 4kb image code section alignment
 dw 9000h
 ; code segment selector
@@ -124,9 +123,9 @@ dw 08h
 
 ; after previous command execution processor should be in protected mode
 
-; GDT data - 3 entries including null descriptor, start address is 32k
+; GDT data - 3*8 - 1 = 23 entries including null descriptor, start address is 32k
 lgdt_data:
-dw 3
+dw 17h
 dd 8000h
 
 hex_chr_buf:
