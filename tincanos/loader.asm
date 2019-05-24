@@ -11,6 +11,18 @@
 
 [section .text]
 
+; clearing screen
+
+; ah - scroll up, al - entire screen
+mov ax, 0600h
+; normal 07 attribute for all symbols on the screen
+mov bh, 7
+; cl - top left col, ch - top left row
+mov cx, 0
+; dh - bottom right col 24, dl bottom right row 79
+mov dx, 184fh
+int 10h
+
 ; es register init required for image read buf
 mov ax, 0
 mov es, ax
@@ -35,6 +47,17 @@ mov dl, 0
 ; reading binary image
 int 13h
 
+; skipping read sectors count display in case of error
+jc read_err
+
+read_err:
+clc
+; displaying @ before interrupt flag clear
+mov di, 0
+
+mov ax, 0740h
+mov [es:di], ax
+
 ; disabling iterrupts
 cli
 
@@ -42,6 +65,41 @@ cli
 
 ; loading global descriptor table
 lgdt [lgdt_data]
+
+sgdt [gdt_test]
+
+; 0x03, 0x00, 0x00, 0x80, 0x00, 0x00
+mov al, byte [gdt_test+5]
+; saving read sectors count
+mov dx, 0
+mov dl, al
+
+; displaying read sectors count contained in al
+mov ax, 0b800h
+mov es, ax
+
+; screen buf offset
+mov di, 4
+; 1 byte - 2 chars
+mov cx, 2
+
+hex_byte_print:
+mov bl, dl
+and bx, 0fh
+
+; getting character from table and using normal 07 attr
+mov al, byte [hex_chr_buf+bx]
+mov ah, 07h
+
+mov [es:di], ax
+sub di, 2
+
+shr dl, 4
+
+dec cx
+cmp cx, 0
+
+jnz hex_byte_print
 
 ; set protection flag
 mov eax, cr0
@@ -54,7 +112,11 @@ mov cr0, eax
 
 init_far_jmp:
 ; encoding far jmp directly
-db 0ebh
+db 0ffh
+db 2eh
+dw 7c7ah
+
+
 ; tables are on 32kb + 4kb image code section alignment
 dw 9000h
 ; code segment selector
@@ -66,3 +128,9 @@ dw 08h
 lgdt_data:
 dw 3
 dd 8000h
+
+hex_chr_buf:
+db '0123456789ABCDEF'
+
+gdt_test:
+dq 0

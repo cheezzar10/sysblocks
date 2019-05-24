@@ -19,8 +19,8 @@ code_seg:
 # code segment bit set, conforming bit is set, readable bit is clear, accessed bit is clear
 
 # see 3.4.3.1 section of IA-32 manual for CRA fields description
-# 10011100
-.byte  0x9c
+# 10011010
+.byte  0x9a
 
 # granularity bit set, 32 bit is set, reserved bit is clear, available bit is clear
 # limit bits all set
@@ -74,6 +74,11 @@ movw %ax, %es
 movw %ax, %gs
 movw %ax, %fs
 
+movw $0x0723, %ax
+movw %ax, 0x0b8008
+
+lp:
+jmp lp
 
 # stack top pointer init at 128kb
 movl $0x20000, %esp

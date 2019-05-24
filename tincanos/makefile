@@ -7,11 +7,12 @@ BOOT_IMG := boot.img
 
 $(BOOT_IMG): EXEC_IMG_SIZE = $(shell ls -l $(EXEC_IMG) | awk '{print $$5}')
 $(BOOT_IMG): $(EXEC_IMG)
-	dd if=/dev/zero of=$@ bs=1 seek=$(EXEC_IMG_SIZE) count=1474560
+	dd if=/dev/zero of=$(EXEC_IMG) bs=1 seek=$(EXEC_IMG_SIZE) count=1474560
+	mv $(EXEC_IMG) $@
 	truncate -s 1474560 $(BOOT_IMG)
 $(EXEC_IMG): $(EXEC).bin
 	mkdosfs -n TINCANOS -C $@ -S 512 1440
-	dd if=loader.com of=$@ bs=1 seek=61
+	dd if=loader.com of=$@ bs=1 seek=62
 	dd if=$(EXEC).bin of=$@ bs=512 seek=1
 $(EXEC).bin: $(EXEC) loader.com
 	objcopy -Obinary $< $@
