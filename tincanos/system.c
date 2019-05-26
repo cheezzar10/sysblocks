@@ -1,46 +1,50 @@
 typedef __SIZE_TYPE__ size_t;
 
-char* const DISPLAY_BUF = (char*)0xB8000;
+// the origin of screen buffer in memory
+#define SCRN_BUF_ORG 0xb8000
 
-const unsigned int DISPLAY_COLUMNS = 80;
+#define SCRN_COLS 80
+#define SCRN_ROWS 24
 
-const unsigned int DISPLAY_LINES = 24;
+const char* const SCRN_BUF_END = (char*)(SCRN_BUF_ORG + SCRN_COLS*SCRN_ROWS*2);
 
-static unsigned int line = 0;
+// current screen buffer position
+static char* scrn_buf = (char*)SCRN_BUF_ORG;
 
-static unsigned int column = 0;
+static size_t row = 0;
+
+static size_t col = 0;
 
 size_t strlen(const char* str);
 
 void print(const char* str);
 
 void start() {
-	print("Hello, metal!");
+	print("Hello, metal!\n");
+	print("addr: ");
+
+	// infinite loop
+	for (;;);
 }
 
-unsigned int strlen(const char* str) {
+void print(const char* s) {
+	char* scrn_buf = SCRN_BUF_ORG + 2*80*row + col*2;
+
+	for (size_t si = 0;s[si] != '\0';si++) {
+		if (s[si] == '\n') {
+			scrn_buf += (SCRN_COLS - col)*2;
+
+			row++;
+			col = 0;
+		} else {
+			*scrn_buf = s[si];
+			scrn_buf += 2;
+		}
+	}
+}
+
+size_t strlen(const char* str) {
 	unsigned int offset = 0;
 	for (;str[offset] != '\0';offset++);
 	return offset;
 }
-
-void print(const char* str) {
-	unsigned int displayBufOffset = line*DISPLAY_COLUMNS*2 + column*2;
-	
-	unsigned int strLen = strlen(str);
-	for (unsigned int strOffset=0;strOffset<strLen;strOffset++) {
-		DISPLAY_BUF[displayBufOffset] = str[strOffset];
-		displayBufOffset += 2;
-		strOffset++;
-		
-		column++;
-		if (column == DISPLAY_COLUMNS) {
-			column = 0;
-			line++;
-		}
-	}
-	
-	column=0;
-	line++;
-}
-

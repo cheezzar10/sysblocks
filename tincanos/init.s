@@ -74,19 +74,18 @@ movw %ax, %es
 movw %ax, %gs
 movw %ax, %fs
 
+# print '#' symbol on screen
 movw $0x0723, %ax
 movw %ax, 0x0b8002
 
-lp:
-jmp lp
-
-# stack top pointer init at 128kb 
+# stack top pointer init at 64k - 4 bytes
 # (subtract one double word from addr to make reading from esp work coorectly)
-movl $0x20000, %esp
+movl $0xfffc, %esp
 
 # jump to sys code entry point
 call start
 
+# empty intr handler
 dummy_isr:
 # returning immediately
 iret
