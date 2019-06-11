@@ -39,3 +39,4 @@ also book Microprocessors, PC Hardware and interfacing contains useful informati
 we should check offsets in generated binary and place far jump at the and of data section and then jump to it after init code completion
 this also means that we need to patch mbr start jump with fixed offset
 
+in ISRs assigned to interrupts with error code, handler should remove error from stack before returning

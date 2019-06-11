@@ -30,5 +30,5 @@ system.o: system.c
 
 .PHONY: clean
 clean:
-	rm -f $(EXEC_IMG)
+	rm -f *.o *.bin *.img
 

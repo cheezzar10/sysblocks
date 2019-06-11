@@ -54,10 +54,12 @@ idt:
 .rept 32
 
 # plain interrupt gate linked to dummy_isr
-.short dummy_isr
+.short nop_isr
 .short code_seg_sel
+# interrupt gate, trap gate descriptor will be 0x8f00
 .short 0x8e00
 .short 0x0
+
 .endr
 
 .section .text
@@ -79,13 +81,26 @@ movw $0x0723, %ax
 movw %ax, 0x0b8002
 
 # stack top pointer init at 64k - 4 bytes
-# (subtract one double word from addr to make reading from esp work coorectly)
 movl $0xfffc, %esp
 
 # jump to sys code entry point
 call start
 
-# empty intr handler
-dummy_isr:
-# returning immediately
+divide_error_handler:
 iret
+
+invalid_opcode_handler:
+iret
+
+segment_not_present_handler:
+iret
+
+# dummy interrupt handler
+nop_isr:
+iret
+
+.global get_eflags
+get_eflags:
+pushfl
+popl %eax
+ret
