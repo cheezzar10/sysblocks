@@ -49,18 +49,136 @@ data_seg:
 
 idt:
 
-# !!! for the first boot interrupt processing should be disabled in loader with cli instruction
-# filling the first 32 entries of IDT
-.rept 32
-
-# plain interrupt gate linked to dummy_isr
-.short nop_isr
+# 0. divide error fault handler descriptor
+.short de_isr
 .short code_seg_sel
-# interrupt gate, trap gate descriptor will be 0x8f00
+# fault
 .short 0x8e00
 .short 0x0
 
+# 1. Intel reserved handler descriptor
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 2. non-maskable external interrupt handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 3. breakpoint trap handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8f00
+.short 0x0
+
+# 4. overflow trap handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8f00
+.short 0x0
+
+# 5. bound range exceeded fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 6. invalid opcode fault handler
+.short ud_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 7. device not available fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 8. double fault handler
+.short df_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 9. co-processor segment overrun fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 10. invalid TSS fault handler
+.short nop_err_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 11. segment not present fault handler
+.short np_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 12. stack segment fault handler
+.short nop_err_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 13. general protection fault handler
+.short gp_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 14. page fault handler
+.short nop_err_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 15. Intel reserved fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 16. floating point error fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 17. alignment check fault handler
+.short nop_err_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 18. machine check fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 19. SIMD floating point fault handler
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# 20-31 Intel reserved fault handlers
+.rept 12
+.short nop_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
 .endr
+
+# IRQ specific interrupt handlers will go here
 
 .section .text
 
@@ -86,17 +204,34 @@ movl $0xfffc, %esp
 # jump to sys code entry point
 call start
 
-divide_error_handler:
+# divide error handler (fault 0)
+de_isr:
 iret
 
-invalid_opcode_handler:
+# undefined opcode handler (fault 6)
+ud_isr:
 iret
 
-segment_not_present_handler:
+# double fault (abort 8)
+df_isr:
 iret
 
-# dummy interrupt handler
+# segment not present (fault 11)
+np_isr:
+iret
+
+# general protection (fault 13)
+gp_isr:
+iret
+
+# empty interrupt handler
 nop_isr:
+iret
+
+# empty fault handler for case when error code is present
+nop_err_isr:
+# removing error code from stack
+addl $4, %esp
 iret
 
 .global get_eflags
