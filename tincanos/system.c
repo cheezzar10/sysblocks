@@ -33,6 +33,10 @@ void start() {
 	int2hex(eflags, &hex_buf[2]);
 	print(hex_buf);
 
+	int q = 5 / 0;
+
+	print("divide error trapped");
+
 	// infinite loop
 	for (;;);
 }

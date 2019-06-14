@@ -180,6 +180,15 @@ idt:
 
 # IRQ specific interrupt handlers will go here
 
+
+idt_data:
+# idt limit 32 * 8 - 1 (2 bytes)
+.short 0xff
+.int idt
+
+de_msg:
+.asciz "divide error\n"
+
 .section .text
 
 # here you can perform data and stack segment initialization and continue execution in pure 32 bit mode
@@ -194,6 +203,9 @@ movw %ax, %es
 movw %ax, %gs
 movw %ax, %fs
 
+lidt idt_data
+sti
+
 # print '#' symbol on screen
 movw $0x0723, %ax
 movw %ax, 0x0b8002
@@ -206,6 +218,15 @@ call start
 
 # divide error handler (fault 0)
 de_isr:
+pushl $de_msg
+call print
+addl $4, %esp
+
+# fixing divide error - jumping 3 bytes (length of idiv)
+movl (%esp), %eax
+addl $3, %eax
+movl %eax, (%esp)
+
 iret
 
 # undefined opcode handler (fault 6)
