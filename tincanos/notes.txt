@@ -71,3 +71,38 @@ icw2 - 0x20 # 0-7 interrupts will be assigned to handlers starting from 32
 performing I/O using GAS: outb %al, $0x20
 
 configuring slave controller
+
+task switching considerations
+
+1. system task will be initialized using the following steps
+
+TSS segment descriptor will be placed to GDT and loaded using LTR
+after that we will perform some actions with flags register (nested task set) and perform iret to switch to system task
+the previous step is not strictly required cause we can perform jump with task switch directly to user code
+
+2. for user tasks we will use another TSS segment selector in GDT and perform switch to it
+
+segment descriptor busy flag is used during task switches
+
+current tasks architecture will be designed the following way:
+
+system task after initialization will far jmp to user task (unix init process analog)
+
+busy flag for system task will be cleared, and task link won't be saved
+
+switch to system task will be performed using INT to task gate configured to system task
+we'll return to system task just after jmp to user instruction. here we'll perform system call dispatch
+perform sys call and return to user code using iret
+
+timer interrupt will be linked to scheduler code and can perform task switch
+
+we should try to perform task switch w/o ldt selector 
+in case of failure we should add LDT descriptor to GDT and load this descriptor 
+using lldt command by passing it LDT selector in GTD
+
+example:
+
+movw 0x8, %ax
+lldt %ax
+
+this selector should be used in all TSS segments
