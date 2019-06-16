@@ -40,3 +40,34 @@ we should check offsets in generated binary and place far jump at the and of dat
 this also means that we need to patch mbr start jump with fixed offset
 
 in ISRs assigned to interrupts with error code, handler should remove error from stack before returning
+
+programming 8259A interrupt controller
+
+4 ICWs (initialization command words)
+
+programming interrupt controller w/o AEOI (automatic end of interrupt) at first
+
+ICW1 
+
+ICW2 - interrupt vectors assignment (should be set starting from 32)
+
+ICW3 - for cascaded mode operation
+
+ICW4 - for interrupt controller fine tuning (AEOI for example)
+
+I/O ports for PIC (programmable interrupt controller) interfacing
+
+20 - for master controller
+A0 - for slave controller
+
+configuring master controller
+
+icw1 - 000010001 ( 0x11) # edge triggered, cascade mode, ICW4 see page 423 of IBM PC and Compatible Computers
+icw1 will be written to port 0x20
+other initialization commands will be written to port 0x21
+
+icw2 - 0x20 # 0-7 interrupts will be assigned to handlers starting from 32
+
+performing I/O using GAS: outb %al, $0x20
+
+configuring slave controller

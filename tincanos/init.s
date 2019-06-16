@@ -180,16 +180,42 @@ idt:
 
 # IRQ specific interrupt handlers will go here
 
+# 32. IRQ0 (timer) interrupt handler
+.short timer_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# nop hardware interrupt handlers for IRQ1-IRQ15
+.rept 15
+.short nop_hw_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+.endr
 
 idt_data:
-# idt limit 32 * 8 - 1 (2 bytes)
-.short 0xff
+# idt limit 48 * 8 - 1 (383 bytes)
+.short 0x17f
 .int idt
 
 de_msg:
 .asciz "divide error\n"
+tm_msg:
+.asciz "@"
 
 .section .text
+
+.macro eoi
+# saving
+pushl %eax
+# sending notification to master/slave interrupt controllers about processed interrupt
+movb $0x20, %al
+outb %al, $0x20
+outb %al, $0xa0
+# restoring
+popl %eax
+.endm
 
 # here you can perform data and stack segment initialization and continue execution in pure 32 bit mode
 
@@ -203,7 +229,36 @@ movw %ax, %es
 movw %ax, %gs
 movw %ax, %fs
 
+# performing interrupt controller initialization
+
+# ICW1 edge triggered mode, cascade mode & ICW4 will be provided
+movb $0x11, %al
+outb %al, $0x20
+outb %al, $0xa0
+# ICW2 master controller will use vectors starting from 32-39 (0x20)
+movb $0x20, %al
+outb %al, $0x21
+movb $0x28, %al
+outb %al, $0xa1
+# ICW3 slave controller connected to IRQ2 of master
+movb $0x4, %al
+outb %al, $0x21
+movb $0x2, %al
+outb %al, $0xa1
+# ICW4 x86 bit set, other bits clear which means normal EOI, nonbuffered
+movb $0x1, %al
+outb %al, $0x21
+outb %al, $0xa1
+
+# unmasking all interrupts for master and slave
+movb $0, %al
+outb %al, $0x21
+outb %al, $0xa1
+
+# loading intr descriptors table
 lidt idt_data
+
+# enabling interrupts
 sti
 
 # print '#' symbol on screen
@@ -212,6 +267,20 @@ movw %ax, 0x0b8002
 
 # stack top pointer init at 64k - 4 bytes
 movl $0xfffc, %esp
+
+# checking timer interrupt manually
+# int $0x20
+
+# sample timer configuration (counter 0, rate LSB/MSB, square wave mode 3, binary counter)
+# 00110110 - 0x36
+# movb $0x36, %al
+# sending control word to timer control registerl
+# outb %al, $0x43
+# movb 0,  %al
+# sending divisor LSB
+# outb %al, $0x40
+# sending divisor MSB
+# outb %al, $0x40
 
 # jump to sys code entry point
 call start
@@ -222,10 +291,16 @@ pushl $de_msg
 call print
 addl $4, %esp
 
+# saving
+pushl %eax
+# TODO cleaner way to skip failed instruction retry is to clear RF flag
 # fixing divide error - jumping 3 bytes (length of idiv)
 movl (%esp), %eax
 addl $3, %eax
+# restoring
 movl %eax, (%esp)
+
+popl %eax
 
 iret
 
@@ -253,6 +328,19 @@ iret
 nop_err_isr:
 # removing error code from stack
 addl $4, %esp
+iret
+
+# timer interrupt handler
+timer_isr:
+pushl $tm_msg
+call print
+addl $4, %esp
+eoi
+iret
+
+# nop interrupt handler for hardware interrupt
+nop_hw_isr:
+eoi
 iret
 
 .global get_eflags
