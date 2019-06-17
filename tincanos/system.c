@@ -24,12 +24,14 @@ void int2hex(uint32_t i, char* buf);
 
 uint32_t get_eflags();
 
+uint32_t get_ldtr();
+
 void start() {
 	print("Hello, metal!\n");
 
 	print("eflags: ");
 	char hex_buf[12] = "0x00000000\n";
-	uint32_t eflags = get_eflags();
+	uint32_t eflags = get_ldtr();
 	int2hex(eflags, &hex_buf[2]);
 	print(hex_buf);
 

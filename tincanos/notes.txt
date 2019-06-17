@@ -106,3 +106,6 @@ movw 0x8, %ax
 lldt %ax
 
 this selector should be used in all TSS segments
+
+we won't use ldt so we'll fill LDT segment selector with zeroes
+page directory base register is also filled with zeroes

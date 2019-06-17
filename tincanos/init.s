@@ -348,3 +348,10 @@ get_eflags:
 pushfl
 popl %eax
 ret
+
+.global get_ldtr
+get_ldtr:
+movl %cr3, %eax
+# mov $0, %eax
+# sldt %ax
+ret
