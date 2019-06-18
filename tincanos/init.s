@@ -41,6 +41,18 @@ data_seg:
 # remaining bits of base
 .byte  0x0
 
+sys_task_seg:
+# I/O map base address is relative to task segment base
+# so we'll use I/O map base address which is greater or equal to task segment limit
+# task segment limit
+.short 0x67
+.short SYS_TSS_BASE
+.byte 0x0
+# 10001001 - present, system (privilege level  0), non-busy
+.byte 0x89
+.byte 0x0
+.byte 0x0
+
 .align 8
 # interrupt vectors definition start
 
@@ -266,7 +278,7 @@ movw $0x0723, %ax
 movw %ax, 0x0b8002
 
 # stack top pointer init at 64k - 4 bytes
-movl $0xfffc, %esp
+movl $STACK_TOP, %esp
 
 # checking timer interrupt manually
 # int $0x20

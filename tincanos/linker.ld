@@ -1,3 +1,5 @@
+TSS_SIZE = 104;
+
 SECTIONS {
 	. = 32K;
 	
@@ -19,6 +21,12 @@ SECTIONS {
 		*(.bss)
 		. = ALIGN(4K);
 		. = 8K;
-		STACK_TOP = .;
+		SYS_TSS_BASE = .;
+
+		STACK_TOP = SYS_TSS_BASE - 4;
+
+		. = . + TSS_SIZE;
+
+		USR_TSS_BASE = .;
 	}
 }

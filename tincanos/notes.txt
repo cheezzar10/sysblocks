@@ -109,3 +109,5 @@ this selector should be used in all TSS segments
 
 we won't use ldt so we'll fill LDT segment selector with zeroes
 page directory base register is also filled with zeroes
+
+stack top, task segments base addresses and it's limits should be defined in linker script and reference from init.s
