@@ -110,4 +110,15 @@ this selector should be used in all TSS segments
 we won't use ldt so we'll fill LDT segment selector with zeroes
 page directory base register is also filled with zeroes
 
-stack top, task segments base addresses and it's limits should be defined in linker script and reference from init.s
+task management plan
+
+1. Switch to user task using 2 task segments: activate system task first, then jmp to user task
+this step is needed to check various flags which will be set in task segment
+
+after that interrupt handling should work as expected (by performing stack switch on handling, may be data segments switch required in interrupt handler)
+the only drawback is that syscall mechanism is not clear in this case
+
+if perform syscall by passing through task gate than interrupt handling will be performed with PL = 0 but w/o task context but syscall with PL = 0 but with task context
+
+2. to solve the above problem we'll use one task segment for user space tasks and switch to it using IRET technique
+switch to system space will be performed using IRET to interrupt gate with DPL = 3 but handler located in system code segment
