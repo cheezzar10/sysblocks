@@ -6,7 +6,7 @@
 # GDT starts with null segment descriptor
 .fill 8
 
-# code segment descriptor
+# system code segment descriptor
 code_seg:
 # low 16 bits of segment limit
 .short 0xffff
@@ -27,7 +27,7 @@ code_seg:
 .byte  0xcf
 .byte  0x0
 
-# data segment descriptor (will be also used as stack segment)
+# system data segment descriptor (will be also used as stack segment)
 data_seg:
 .short 0xffff
 .short 0x0
@@ -41,6 +41,28 @@ data_seg:
 # remaining bits of base
 .byte  0x0
 
+# user code/data segment descriptors of the same location and size as the system ones (@0 4G size)
+# user code segment descriptor
+usr_code_seg:
+.short 0xffff
+.short 0x0
+.byte 0x0
+# 11111000 - present, privilege level 3, execute only segment
+.byte 0xf8
+# 11001111
+.byte 0xcf
+.byte 0x0
+
+# user data segment descriptor
+usr_data_seg:
+.short 0xffff
+.short 0x0
+.byte 0x0
+# 11110010 - present, priv level 3, read/write data segment
+.byte 0xf2
+.byte 0xcf
+.byte 0x0
+
 sys_task_seg:
 # I/O map base address is relative to task segment base
 # so we'll use I/O map base address which is greater or equal to task segment limit
@@ -48,10 +70,17 @@ sys_task_seg:
 .short 0x67
 .short SYS_TSS_BASE
 .byte 0x0
-# 10001001 - present, system (privilege level  0), non-busy
+# 10001001 - present, system (privilege level 0), non-busy
 .byte 0x89
+.short 0x0
+
+usr_task_seg:
+.short 0x67
+.short USR_TSS_BASE
 .byte 0x0
-.byte 0x0
+# 11101001 - present, user (priv level 3), busy bit clear
+.byte 0xe9
+.short 0x0
 
 .align 8
 # interrupt vectors definition start

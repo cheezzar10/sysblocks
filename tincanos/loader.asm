@@ -58,9 +58,9 @@ dw 08h
 
 ; we should be in protected mode now
 
-; GDT data - 3*8 - 1 = 23 entries including null descriptor, start address is 32k
+; GDT data - 7*8 - 1 = entries including null descriptor, start address is 32k
 lgdt_data:
-dw 17h
+dw 37h
 dd 8000h
 
 hex_chr_buf:

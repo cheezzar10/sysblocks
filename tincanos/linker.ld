@@ -20,7 +20,7 @@ SECTIONS {
 	.bss : {
 		*(.bss)
 		. = ALIGN(4K);
-		. = 8K;
+		. = . + 8K;
 		SYS_TSS_BASE = .;
 
 		STACK_TOP = SYS_TSS_BASE - 4;
