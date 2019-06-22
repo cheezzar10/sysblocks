@@ -78,8 +78,8 @@ usr_task_seg:
 .short 0x67
 .short USR_TSS_BASE
 .byte 0x0
-# 11101001 - present, user (priv level 3), busy bit clear
-.byte 0xe9
+# 10001001 - present, system (priv level 0 - only system code can perform task switch), busy bit clear
+.byte 0x89
 .short 0x0
 
 .align 8
@@ -152,7 +152,7 @@ idt:
 .short 0x0
 
 # 10. invalid TSS fault handler
-.short nop_err_isr
+.short ts_isr
 .short code_seg_sel
 .short 0x8e00
 .short 0x0
@@ -164,7 +164,7 @@ idt:
 .short 0x0
 
 # 12. stack segment fault handler
-.short nop_err_isr
+.short ss_isr
 .short code_seg_sel
 .short 0x8e00
 .short 0x0
@@ -245,6 +245,14 @@ de_msg:
 tm_msg:
 .asciz "@"
 
+.global sys_tss_base
+sys_tss_base:
+.int SYS_TSS_BASE
+
+.global usr_tss_base
+usr_tss_base:
+.int USR_TSS_BASE
+
 .section .text
 
 .macro eoi
@@ -302,10 +310,6 @@ lidt idt_data
 # enabling interrupts
 sti
 
-# print '#' symbol on screen
-movw $0x0723, %ax
-movw %ax, 0x0b8002
-
 # stack top pointer init at 64k - 4 bytes
 movl $STACK_TOP, %esp
 
@@ -325,6 +329,19 @@ movl $STACK_TOP, %esp
 
 # jump to sys code entry point
 call start
+
+# setting system task context
+movw $0x28, %ax
+ltr %ax
+
+movw $0x077e, %ax
+movw %ax, 0x0b8140
+
+# switching to user task
+ljmp $0x30, $0
+
+lllll:
+jmp lllll
 
 # divide error handler (fault 0)
 de_isr:
@@ -347,18 +364,60 @@ iret
 
 # undefined opcode handler (fault 6)
 ud_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x077c, %ax
+movw %ax, 0x0b81e0
 iret
 
 # double fault (abort 8)
 df_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x0721, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
+iret
+
+# invalid TSS fault handler
+ts_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x0724, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
 iret
 
 # segment not present (fault 11)
 np_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x072a, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
+iret
+
+# stack segment fault (fault 12)
+ss_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x072b, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
 iret
 
 # general protection (fault 13)
 gp_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw $0x0725, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
 iret
 
 # empty interrupt handler
@@ -373,9 +432,12 @@ iret
 
 # timer interrupt handler
 timer_isr:
-pushl $tm_msg
-call print
-addl $4, %esp
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+#pushl $tm_msg
+#call print
+#addl $4, %esp
 eoi
 iret
 
@@ -392,7 +454,13 @@ ret
 
 .global get_ldtr
 get_ldtr:
-movl %cr3, %eax
+movl %cs, %eax
 # mov $0, %eax
 # sldt %ax
 ret
+
+.global task
+task:
+movw $0x0724, %ax
+movw %ax, 0x0b8140
+call user_task
