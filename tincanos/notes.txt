@@ -122,3 +122,7 @@ if perform syscall by passing through task gate than interrupt handling will be 
 
 2. to solve the above problem we'll use one task segment for user space tasks and switch to it using IRET technique
 switch to system space will be performed using IRET to interrupt gate with DPL = 3 but handler located in system code segment
+
+running comiled boot image using qemu and consuming 1m of memory only
+
+qemu-system-i386 -m 1 -display curses -fda tincanos.img -no-fd-bootchk -boot order=a
