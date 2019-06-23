@@ -245,13 +245,22 @@ de_msg:
 tm_msg:
 .asciz "@"
 
-.global sys_tss_base
-sys_tss_base:
+// task segment pointers referenced from system initialization code
+.global sys_tss_ptr
+sys_tss_ptr:
 .int SYS_TSS_BASE
 
-.global usr_tss_base
-usr_tss_base:
+.global usr_tss_ptr
+usr_tss_ptr:
 .int USR_TSS_BASE
+
+task_switch_gate:
+# encoded far jmp ljmp %eax, $0
+.byte 0xea
+.int 0x0
+.short 0x0
+# encoded ret
+.byte 0xc3
 
 .section .text
 
@@ -268,7 +277,6 @@ popl %eax
 
 # here you can perform data and stack segment initialization and continue execution in pure 32 bit mode
 
-init:
 # stack and data segment initialization
 movw $0x10, %ax
 
@@ -278,43 +286,16 @@ movw %ax, %es
 movw %ax, %gs
 movw %ax, %fs
 
-# performing interrupt controller initialization
-
-# ICW1 edge triggered mode, cascade mode & ICW4 will be provided
-movb $0x11, %al
-outb %al, $0x20
-outb %al, $0xa0
-# ICW2 master controller will use vectors starting from 32-39 (0x20)
-movb $0x20, %al
-outb %al, $0x21
-movb $0x28, %al
-outb %al, $0xa1
-# ICW3 slave controller connected to IRQ2 of master
-movb $0x4, %al
-outb %al, $0x21
-movb $0x2, %al
-outb %al, $0xa1
-# ICW4 x86 bit set, other bits clear which means normal EOI, nonbuffered
-movb $0x1, %al
-outb %al, $0x21
-outb %al, $0xa1
-
-# unmasking all interrupts for master and slave
-movb $0, %al
-outb %al, $0x21
-outb %al, $0xa1
-
-# loading intr descriptors table
-lidt idt_data
-
-# enabling interrupts
-sti
-
 # stack top pointer init at 64k - 4 bytes
 movl $STACK_TOP, %esp
 
-# checking timer interrupt manually
-# int $0x20
+# system task context initialization
+movw $0x28, %ax
+ltr %ax
+
+# jump to sys code entry point
+# TODO rename to sys init
+call sys_init
 
 # sample timer configuration (counter 0, rate LSB/MSB, square wave mode 3, binary counter)
 # 00110110 - 0x36
@@ -327,21 +308,9 @@ movl $STACK_TOP, %esp
 # sending divisor MSB
 # outb %al, $0x40
 
-# jump to sys code entry point
-call start
-
-# setting system task context
-movw $0x28, %ax
-ltr %ax
-
-movw $0x077e, %ax
-movw %ax, 0x0b8140
-
-# switching to user task
-ljmp $0x30, $0
-
-lllll:
-jmp lllll
+# TODO move to sys_init function
+syscall_dispatch_loop:
+jmp syscall_dispatch_loop
 
 # divide error handler (fault 0)
 de_isr:
@@ -364,6 +333,7 @@ iret
 
 # undefined opcode handler (fault 6)
 ud_isr:
+# TODO all handlers should save %eax before use
 movw $0x10, %ax
 movw %ax, %ds
 movw %ax, %es
@@ -415,6 +385,7 @@ iret
 gp_isr:
 movw $0x10, %ax
 movw %ax, %ds
+movw %ax, %es
 movw $0x0725, %ax
 movw %ax, 0x0b81e0
 addl $4, %esp
@@ -446,6 +417,42 @@ nop_hw_isr:
 eoi
 iret
 
+# programmable interrupt controller initialization
+.global pic_init
+pic_init:
+
+# ICW1 edge triggered mode, cascade mode & ICW4 will be provided
+movb $0x11, %al
+outb %al, $0x20
+outb %al, $0xa0
+# ICW2 master controller will use vectors starting from 32-39 (0x20)
+movb $0x20, %al
+outb %al, $0x21
+movb $0x28, %al
+outb %al, $0xa1
+# ICW3 slave controller connected to IRQ2 of master
+movb $0x4, %al
+outb %al, $0x21
+movb $0x2, %al
+outb %al, $0xa1
+# ICW4 x86 bit set, other bits clear which means normal EOI, nonbuffered
+movb $0x1, %al
+outb %al, $0x21
+outb %al, $0xa1
+
+# unmasking all interrupts for master and slave
+movb $0, %al
+outb %al, $0x21
+outb %al, $0xa1
+
+# loading intr descriptors table
+lidt idt_data
+
+# enabling interrupts
+sti
+
+ret
+
 .global get_eflags
 get_eflags:
 pushfl
@@ -459,8 +466,9 @@ movl %cs, %eax
 # sldt %ax
 ret
 
-.global task
-task:
-movw $0x0724, %ax
-movw %ax, 0x0b8140
-call user_task
+.global task_switch
+task_switch:
+movl 4(%esp), %eax
+movl $task_switch_gate, %edx
+movw %ax, 5(%edx)
+jmp task_switch_gate

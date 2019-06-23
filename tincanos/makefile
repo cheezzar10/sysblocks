@@ -4,6 +4,9 @@ LDFLAGS := -Tlinker.ld
 EXEC := $(shell basename $(PWD))
 EXEC_IMG := $(EXEC).img
 
+.PHONY: all
+all: $(EXEC_IMG)
+
 $(EXEC_IMG): $(EXEC).bin
 	mkdosfs -n TINCANOS -C $@ -S 512 1440
 	dd if=loader.com of=$@ bs=1 seek=62
@@ -22,7 +25,7 @@ $(EXEC): init.o system.o
 loader.com: loader.asm
 	nasm -f bin -o $@ $^
 
-.INTERMEDIATE: init.o
+#.INTERMEDIATE: init.o
 init.o: init.s
 
 .INTERMEDIATE: system.o

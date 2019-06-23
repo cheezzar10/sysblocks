@@ -16,9 +16,10 @@ typedef unsigned int uint32_t;
 #define USR_STACK 0x1fffc
 #define USR_CODE_SEG_SEL 0x1b
 #define USR_DATA_SEG_SEL 0x23
+#define USR_TSS_SEL 0x30
 
-extern struct tss* sys_tss_base;
-extern void* usr_tss_base;
+extern struct tss* sys_tss_ptr;
+extern struct tss* usr_tss_ptr;
 
 const char* const SCRN_BUF_END = (char*)(SCRN_BUF_ORG + SCRN_COLS*SCRN_ROWS*2);
 
@@ -34,12 +35,17 @@ void print(const char* str);
 
 void int2hex(uint32_t i, char* buf);
 
+// TODO the following functions should be moved to init.h
 uint32_t get_eflags();
 
 uint32_t get_ldtr();
 
-// user level task entry point
-void task();
+void pic_init();
+
+// TODO uint16_t actually
+void task_switch(uint32_t tss_sel);
+
+// end of system initialization functions header
 
 struct tss {
 	uint32_t pvt;
@@ -87,10 +93,25 @@ void* memcpy(void* dst, const void* src, size_t n) {
 	return dst;
 }
 
-void start() {
-	print("Hello, metal!\n");
+void usr_init() {
+	uint32_t eflags = get_eflags();
+	
+	print("eflags: ");
+	char hex_buf[12] = "0x00000000\n";
+	int2hex(eflags, &hex_buf[2]);
+	print(hex_buf);
 
-	print("usr tss eip: ");
+	// call intr(49) where system task gate will be placed
+
+	for (;;);
+}
+
+void sys_init() {
+	print("OS primitives testbench started\n");
+
+	pic_init();
+
+	print("null gdt entry: ");
 	char hex_buf[12] = "0x00000000\n";
 	// int2hex(*(uint32_t*)(usr_tss_base + 32), &hex_buf[2]);
 	int2hex(*((int*)0x8000), &hex_buf[2]);
@@ -98,53 +119,38 @@ void start() {
 
 	// int q = 5 / 0;
 	// print("divide error trapped");
-	memset(sys_tss_base, 0, sizeof(struct tss));
-	sys_tss_base->cs = 0x8;
 
-	struct tss usr_tss;
-	memset(&usr_tss, 0, sizeof(usr_tss));
+	memset(sys_tss_ptr, 0, sizeof(struct tss));
+	memset(usr_tss_ptr, 0, sizeof(struct tss));
 
 	// configuring stack swiching parameters
-	usr_tss.esp0 = SYS_ISR_STACK;
-	usr_tss.ss0 =  SYS_DATA_SEG_SEL;
-	usr_tss.esp1 = usr_tss.esp0;
-	usr_tss.ss1 =  usr_tss.ss0;
-	usr_tss.esp2 = usr_tss.esp0;
-	usr_tss.ss2 =  usr_tss.ss0;
+	usr_tss_ptr->esp0 = SYS_ISR_STACK;
+	usr_tss_ptr->ss0 = SYS_DATA_SEG_SEL;
+	usr_tss_ptr->esp1 = SYS_ISR_STACK;
+	usr_tss_ptr->ss1 = SYS_DATA_SEG_SEL;
+	usr_tss_ptr->esp2 = SYS_ISR_STACK;
+	usr_tss_ptr->ss2 = SYS_DATA_SEG_SEL;
 
-	// TODO point to the first instruction of user level task
-	usr_tss.eip = task;
+	// user level task starts by calling usr_init
+	usr_tss_ptr->eip = usr_init;
 
-	uint32_t eflags = get_eflags();
-	usr_tss.eflags = eflags;
+	usr_tss_ptr->eflags = get_eflags();
 
-	usr_tss.esp = USR_STACK;
+	usr_tss_ptr->esp = USR_STACK;
 
-	usr_tss.cs = USR_CODE_SEG_SEL;
-	usr_tss.ds = USR_DATA_SEG_SEL;
-	usr_tss.es = usr_tss.ds;
-	usr_tss.ss = usr_tss.ds;
-	usr_tss.fs = usr_tss.ds;
-	usr_tss.gs = usr_tss.ds;
+	usr_tss_ptr->cs = USR_CODE_SEG_SEL;
+	usr_tss_ptr->ds = USR_DATA_SEG_SEL;
+	usr_tss_ptr->ss = USR_DATA_SEG_SEL;
+	usr_tss_ptr->es = USR_DATA_SEG_SEL;
+	usr_tss_ptr->fs = USR_DATA_SEG_SEL;
+	usr_tss_ptr->gs = USR_DATA_SEG_SEL;
 
 	// making I/O map base addr offset larger than segment limit indicating that I/O map not initialized
-	usr_tss.iomap_base = 0x680000;
+	usr_tss_ptr->iomap_base = 0x680000;
 
-	// copying user TSS data to TSS segment
-	memcpy(usr_tss_base, &usr_tss, sizeof(usr_tss));
+	task_switch(USR_TSS_SEL);
 
-	// infinite loop
-	// for (;;);
-}
-
-void user_task() {
-	uint32_t cs_reg = get_ldtr();
-	
-	print("code segment register: ");
-	char hex_buf[12] = "0x00000000\n";
-	int2hex(cs_reg, &hex_buf[2]);
-	print(hex_buf);
-
+	// TODO place syscalls dispatcher here
 	for (;;);
 }
 
