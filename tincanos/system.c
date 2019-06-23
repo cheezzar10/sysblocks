@@ -148,6 +148,7 @@ void sys_init() {
 	// making I/O map base addr offset larger than segment limit indicating that I/O map not initialized
 	usr_tss_ptr->iomap_base = 0x680000;
 
+	sys_tss_ptr->pvt = USR_TSS_SEL;
 	task_switch(USR_TSS_SEL);
 
 	// TODO place syscalls dispatcher here

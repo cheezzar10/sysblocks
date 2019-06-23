@@ -79,7 +79,7 @@ usr_task_seg:
 .short USR_TSS_BASE
 .byte 0x0
 # 10001001 - present, system (priv level 0 - only system code can perform task switch), busy bit clear
-.byte 0x89
+.byte 0x8b
 .short 0x0
 
 .align 8
@@ -379,11 +379,16 @@ iret
 
 # general protection (fault 13)
 gp_isr:
+pushl %eax
 movw $0x10, %ax
 movw %ax, %ds
 movw %ax, %es
-movw $0x0725, %ax
+movb 5(%esp), %al
+addb $0x40, %al
+movb $0x7, %ah
+#movw $0x0725, %ax
 movw %ax, 0x0b81e0
+popl %eax
 addl $4, %esp
 iret
 
@@ -464,7 +469,11 @@ ret
 
 .global task_switch
 task_switch:
-movl 4(%esp), %eax
-movl $task_switch_addr, %edx
-movw %ax, 4(%edx)
-ljmp (%edx)
+pushfl
+popl %eax
+# nested task flag
+orl $0x4000, %eax
+pushl %eax
+popfl
+iret
+ret
