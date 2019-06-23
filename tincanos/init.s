@@ -254,13 +254,9 @@ sys_tss_ptr:
 usr_tss_ptr:
 .int USR_TSS_BASE
 
-task_switch_gate:
-# encoded far jmp ljmp %eax, $0
-.byte 0xea
+task_switch_addr:
 .int 0x0
 .short 0x0
-# encoded ret
-.byte 0xc3
 
 .section .text
 
@@ -469,6 +465,6 @@ ret
 .global task_switch
 task_switch:
 movl 4(%esp), %eax
-movl $task_switch_gate, %edx
-movw %ax, 5(%edx)
-jmp task_switch_gate
+movl $task_switch_addr, %edx
+movw %ax, 4(%edx)
+ljmp (%edx)

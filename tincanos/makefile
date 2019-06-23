@@ -25,7 +25,7 @@ $(EXEC): init.o system.o
 loader.com: loader.asm
 	nasm -f bin -o $@ $^
 
-#.INTERMEDIATE: init.o
+.INTERMEDIATE: init.o
 init.o: init.s
 
 .INTERMEDIATE: system.o
