@@ -27,6 +27,10 @@ mov dx, 0000h
 ; reading binary image
 int 13h
 
+in al, 92h
+or al, 2
+out 92h, al
+
 ; displaying @ bofore switching to protected mode
 mov ax, 0b800h
 mov es, ax
@@ -60,7 +64,7 @@ dw 08h
 
 ; GDT data - 7*8 - 1 = entries including null descriptor, start address is 32k
 lgdt_data:
-dw 37h
+dw 3fh
 dd 8000h
 
 hex_chr_buf:

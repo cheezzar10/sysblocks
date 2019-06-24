@@ -82,6 +82,13 @@ usr_task_seg:
 .byte 0x8b
 .short 0x0
 
+ldt_seg:
+.short 0xffff
+.short 0x0
+.byte 0x40
+.byte 0x82
+.short 0x0
+
 .align 8
 # interrupt vectors definition start
 
@@ -285,6 +292,9 @@ movw %ax, %fs
 # stack top pointer init at 64k - 4 bytes
 movl $STACK_TOP, %esp
 
+movw $0x38, %ax
+lldt %ax 
+
 # system task context initialization
 movw $0x28, %ax
 ltr %ax
@@ -383,8 +393,8 @@ pushl %eax
 movw $0x10, %ax
 movw %ax, %ds
 movw %ax, %es
-movb 5(%esp), %al
-addb $0x40, %al
+movb 4(%esp), %al
+addb $0x42, %al
 movb $0x7, %ah
 #movw $0x0725, %ax
 movw %ax, 0x0b81e0
