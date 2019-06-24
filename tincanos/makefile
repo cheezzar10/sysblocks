@@ -1,4 +1,5 @@
-CFLAGS = -Wall -std=c99 -O0 -fno-builtin -nostdlib
+ASFLAGS = --32
+CFLAGS = -m32 -Wall -std=c99 -O0 -fno-builtin -nostdlib
 LDFLAGS := -Tlinker.ld
 
 EXEC := $(shell basename $(PWD))
