@@ -103,7 +103,18 @@ if perform syscall by passing through task gate than interrupt handling will be 
 2. to solve the above problem we'll use one task segment for user space tasks and switch to it using IRET technique
 switch to system space will be performed using IRET to interrupt gate with DPL = 3 but handler located in system code segment
 
-DMA programming notes
+* Using configured timer for delay programming
+
+Approach 1 - timer latching can be used followed by counter read operation
+by using this approach we can measure time of several nop instructions and nop filled loop with CPU speed derived counter
+
+Approach 2 - use some kernel space per CPU tick counter which will tick every timer tick (IRQ0 isr should increment this counter)
+
+also bit for of port 0x61 can be used for timer tick detection
+
+seems like Approach 2 is the most preferable due to simplicity and hardware independence
+
+* DMA programming notes
 
 default DMA channels assignment scheme:
 
@@ -128,8 +139,9 @@ and DMA channel 1 or 2 (will be checked during programming)
 
 Practice:
 1. DMA controller should be enabled before use
+bit 2 when set to 0 enables DMA controller, when set to 1 disables it
 
-movb $0x4, %ax
+movb $0x0, %ax
 outb %ax, $0x8
 
 also, current DMA controller state fcan be read right from the command register
