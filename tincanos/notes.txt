@@ -77,8 +77,6 @@ task switching considerations
 1. system task will be initialized using the following steps
 
 TSS segment descriptor will be placed to GDT and loaded using LTR
-after that we will perform some actions with flags register (nested task set) and perform iret to switch to system task
-the previous step is not strictly required cause we can perform jump with task switch directly to user code
 
 2. for user tasks we will use another TSS segment selector in GDT and perform switch to it
 
@@ -86,29 +84,11 @@ segment descriptor busy flag is used during task switches
 
 current tasks architecture will be designed the following way:
 
-system task after initialization will far jmp to user task (unix init process analog)
-
-busy flag for system task will be cleared, and task link won't be saved
-
 switch to system task will be performed using INT to task gate configured to system task
 we'll return to system task just after jmp to user instruction. here we'll perform system call dispatch
 perform sys call and return to user code using iret
 
 timer interrupt will be linked to scheduler code and can perform task switch
-
-we should try to perform task switch w/o ldt selector 
-in case of failure we should add LDT descriptor to GDT and load this descriptor 
-using lldt command by passing it LDT selector in GTD
-
-example:
-
-movw 0x8, %ax
-lldt %ax
-
-this selector should be used in all TSS segments
-
-we won't use ldt so we'll fill LDT segment selector with zeroes
-page directory base register is also filled with zeroes
 
 task management plan
 
@@ -122,3 +102,42 @@ if perform syscall by passing through task gate than interrupt handling will be 
 
 2. to solve the above problem we'll use one task segment for user space tasks and switch to it using IRET technique
 switch to system space will be performed using IRET to interrupt gate with DPL = 3 but handler located in system code segment
+
+DMA programming notes
+
+default DMA channels assignment scheme:
+
+0 - DRAM refresh in PC/XT times (unused anymore)
+1 - not assigned, can be used for any activities
+2 - floppy disk controller
+3 - HDD controller
+
+Main aspects of DMA programming (I/O ports : DMA registers association can be found in any books about DMA programming i.e. page 460 of IBM PC and Compatible)
+
+Command register (I/O port 0x8 for DMA #1): controlling the operation of DMA controller
+Status register (the same I/O port as control but for reading only): active channel request bist will be set here
+Mode register 
+Single mask register: can be used for masking specific DMA channel
+All mask register: can be used for bulk masking of DMA channels
+
+on top of the control/mode registers there are memory address/count registers for each DMA channel
+by using them we can specify memory block address and it's size for DMA operation
+
+default floppy disk interrupt assignment is IRQ6
+and DMA channel 1 or 2 (will be checked during programming)
+
+Practice:
+1. DMA controller should be enabled before use
+
+movb $0x4, %ax
+outb %ax, $0x8
+
+also, current DMA controller state fcan be read right from the command register
+
+floppy disk controller programming notes
+1. all command to controler are passed through data register (which size is 16 bits)
+16-bit I/O instructions can use immediate ports but should use 16-bit register and by aligned by word boundary
+
+data register size is not 16-bits but 16 bytes. controller commands should be passed byte by byte
+
+all commands execution are splitted into 3 phases: issue command, wait for result, read command completion status
