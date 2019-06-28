@@ -487,3 +487,25 @@ pushl %eax
 popfl
 iret
 ret
+
+# fdd status = 0x80 (ready), fdd types = 0x40
+# only B drive installed, and it's of type 1.44
+# when passing parameters in C style only ebp, ebx, esi, edi registers should be saved
+.global fdd_init
+fdd_init:
+movl $0, %eax
+movl $0, %ecx
+# checking installed drive type
+movb $0x10, %al
+outb %al, $0x70
+inb $0x71, %al
+# reading fdd main status register content
+movw $0x3f4, %dx
+inb %dx, %al
+# drive is ready, read data command can be issued
+# check for DMA status in dor register
+# READ DATA command sequence 0x6, 0x1, track (0x0), 
+# also,MFM bit should be set for read command
+# better use read track command, it's simpler
+# this way we can transfer 9k of data in one command (and placed into 12k buffer)
+ret

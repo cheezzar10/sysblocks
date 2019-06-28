@@ -42,6 +42,8 @@ uint32_t get_ldtr();
 
 void pic_init();
 
+uint32_t fdd_init();
+
 // TODO uint16_t actually
 void task_switch(uint32_t tss_sel);
 
@@ -111,12 +113,6 @@ void sys_init() {
 
 	pic_init();
 
-	print("null gdt entry: ");
-	char hex_buf[12] = "0x00000000\n";
-	// int2hex(*(uint32_t*)(usr_tss_base + 32), &hex_buf[2]);
-	int2hex(*((int*)0x8000), &hex_buf[2]);
-	print(hex_buf);
-
 	// int q = 5 / 0;
 	// print("divide error trapped");
 
@@ -149,8 +145,16 @@ void sys_init() {
 	usr_tss_ptr->iomap_base = 0x680000;
 	usr_tss_ptr->ldt = 0x38;
 
-	sys_tss_ptr->pvt = USR_TSS_SEL;
-	task_switch(USR_TSS_SEL);
+	// sys_tss_ptr->pvt = USR_TSS_SEL;
+	// task_switch(USR_TSS_SEL);
+
+	uint32_t fdd_status = fdd_init();
+
+	print("fdd status: ");
+	char hex_buf[12] = "0x00000000\n";
+	// int2hex(*(uint32_t*)(usr_tss_base + 32), &hex_buf[2]);
+	int2hex(fdd_status, &hex_buf[2]);
+	print(hex_buf);
 
 	// TODO place syscalls dispatcher here
 	for (;;);
