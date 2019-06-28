@@ -6,7 +6,7 @@
 # GDT starts with null segment descriptor
 .fill 8
 
-# code segment descriptor
+# system code segment descriptor
 code_seg:
 # low 16 bits of segment limit
 .short 0xffff
@@ -27,7 +27,7 @@ code_seg:
 .byte  0xcf
 .byte  0x0
 
-# data segment descriptor (will be also used as stack segment)
+# system data segment descriptor (will be also used as stack segment)
 data_seg:
 .short 0xffff
 .short 0x0
@@ -41,6 +41,28 @@ data_seg:
 # remaining bits of base
 .byte  0x0
 
+# user code/data segment descriptors of the same location and size as the system ones (@0 4G size)
+# user code segment descriptor
+usr_code_seg:
+.short 0xffff
+.short 0x0
+.byte 0x0
+# 11111000 - present, privilege level 3, execute only segment
+.byte 0xf8
+# 11001111
+.byte 0xcf
+.byte 0x0
+
+# user data segment descriptor
+usr_data_seg:
+.short 0xffff
+.short 0x0
+.byte 0x0
+# 11110010 - present, priv level 3, read/write data segment
+.byte 0xf2
+.byte 0xcf
+.byte 0x0
+
 sys_task_seg:
 # I/O map base address is relative to task segment base
 # so we'll use I/O map base address which is greater or equal to task segment limit
@@ -48,10 +70,24 @@ sys_task_seg:
 .short 0x67
 .short SYS_TSS_BASE
 .byte 0x0
-# 10001001 - present, system (privilege level  0), non-busy
+# 10001001 - present, system (privilege level 0), non-busy
 .byte 0x89
+.short 0x0
+
+usr_task_seg:
+.short 0x67
+.short USR_TSS_BASE
 .byte 0x0
-.byte 0x0
+# 10001001 - present, system (priv level 0 - only system code can perform task switch), busy bit clear
+.byte 0x8b
+.short 0x0
+
+ldt_seg:
+.short 0xffff
+.short 0x0
+.byte 0x40
+.byte 0x82
+.short 0x0
 
 .align 8
 # interrupt vectors definition start
@@ -123,7 +159,7 @@ idt:
 .short 0x0
 
 # 10. invalid TSS fault handler
-.short nop_err_isr
+.short ts_isr
 .short code_seg_sel
 .short 0x8e00
 .short 0x0
@@ -135,7 +171,7 @@ idt:
 .short 0x0
 
 # 12. stack segment fault handler
-.short nop_err_isr
+.short ss_isr
 .short code_seg_sel
 .short 0x8e00
 .short 0x0
@@ -216,6 +252,19 @@ de_msg:
 tm_msg:
 .asciz "@"
 
+// task segment pointers referenced from system initialization code
+.global sys_tss_ptr
+sys_tss_ptr:
+.int SYS_TSS_BASE
+
+.global usr_tss_ptr
+usr_tss_ptr:
+.int USR_TSS_BASE
+
+task_switch_addr:
+.int 0x0
+.short 0x0
+
 .section .text
 
 .macro eoi
@@ -231,7 +280,6 @@ popl %eax
 
 # here you can perform data and stack segment initialization and continue execution in pure 32 bit mode
 
-init:
 # stack and data segment initialization
 movw $0x10, %ax
 
@@ -241,7 +289,148 @@ movw %ax, %es
 movw %ax, %gs
 movw %ax, %fs
 
-# performing interrupt controller initialization
+# stack top pointer init at 64k - 4 bytes
+movl $STACK_TOP, %esp
+
+movw $0x38, %ax
+lldt %ax 
+
+# system task context initialization
+movw $0x28, %ax
+ltr %ax
+
+# jump to sys code entry point
+# TODO rename to sys init
+call sys_init
+
+# sample timer configuration (counter 0, rate LSB/MSB, square wave mode 3, binary counter)
+# 00110110 - 0x36
+# movb $0x36, %al
+# sending control word to timer control registerl
+# outb %al, $0x43
+# movb 0,  %al
+# sending divisor LSB
+# outb %al, $0x40
+# sending divisor MSB
+# outb %al, $0x40
+
+# TODO move to sys_init function
+syscall_dispatch_loop:
+jmp syscall_dispatch_loop
+
+# divide error handler (fault 0)
+de_isr:
+pushl $de_msg
+call print
+addl $4, %esp
+
+# saving
+pushl %eax
+# TODO cleaner way to skip failed instruction retry is to clear RF flag
+# fixing divide error - jumping 3 bytes (length of idiv)
+movl (%esp), %eax
+addl $3, %eax
+# restoring
+movl %eax, (%esp)
+
+popl %eax
+
+iret
+
+# undefined opcode handler (fault 6)
+ud_isr:
+# TODO all handlers should save %eax before use
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x077c, %ax
+movw %ax, 0x0b81e0
+iret
+
+# double fault (abort 8)
+df_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x0721, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
+iret
+
+# invalid TSS fault handler
+ts_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x0724, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
+iret
+
+# segment not present (fault 11)
+np_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x072a, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
+iret
+
+# stack segment fault (fault 12)
+ss_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movw $0x072b, %ax
+movw %ax, 0x0b81e0
+addl $4, %esp
+iret
+
+# general protection (fault 13)
+gp_isr:
+pushl %eax
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+movb 4(%esp), %al
+addb $0x42, %al
+movb $0x7, %ah
+#movw $0x0725, %ax
+movw %ax, 0x0b81e0
+popl %eax
+addl $4, %esp
+iret
+
+# empty interrupt handler
+nop_isr:
+iret
+
+# empty fault handler for case when error code is present
+nop_err_isr:
+# removing error code from stack
+addl $4, %esp
+iret
+
+# timer interrupt handler
+timer_isr:
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+#pushl $tm_msg
+#call print
+#addl $4, %esp
+eoi
+iret
+
+# nop interrupt handler for hardware interrupt
+nop_hw_isr:
+eoi
+iret
+
+# programmable interrupt controller initialization
+.global pic_init
+pic_init:
 
 # ICW1 edge triggered mode, cascade mode & ICW4 will be provided
 movb $0x11, %al
@@ -273,87 +462,7 @@ lidt idt_data
 # enabling interrupts
 sti
 
-# print '#' symbol on screen
-movw $0x0723, %ax
-movw %ax, 0x0b8002
-
-# stack top pointer init at 64k - 4 bytes
-movl $STACK_TOP, %esp
-
-# checking timer interrupt manually
-# int $0x20
-
-# sample timer configuration (counter 0, rate LSB/MSB, square wave mode 3, binary counter)
-# 00110110 - 0x36
-# movb $0x36, %al
-# sending control word to timer control registerl
-# outb %al, $0x43
-# movb 0,  %al
-# sending divisor LSB
-# outb %al, $0x40
-# sending divisor MSB
-# outb %al, $0x40
-
-# jump to sys code entry point
-call start
-
-# divide error handler (fault 0)
-de_isr:
-pushl $de_msg
-call print
-addl $4, %esp
-
-# saving
-pushl %eax
-# TODO cleaner way to skip failed instruction retry is to clear RF flag
-# fixing divide error - jumping 3 bytes (length of idiv)
-movl (%esp), %eax
-addl $3, %eax
-# restoring
-movl %eax, (%esp)
-
-popl %eax
-
-iret
-
-# undefined opcode handler (fault 6)
-ud_isr:
-iret
-
-# double fault (abort 8)
-df_isr:
-iret
-
-# segment not present (fault 11)
-np_isr:
-iret
-
-# general protection (fault 13)
-gp_isr:
-iret
-
-# empty interrupt handler
-nop_isr:
-iret
-
-# empty fault handler for case when error code is present
-nop_err_isr:
-# removing error code from stack
-addl $4, %esp
-iret
-
-# timer interrupt handler
-timer_isr:
-pushl $tm_msg
-call print
-addl $4, %esp
-eoi
-iret
-
-# nop interrupt handler for hardware interrupt
-nop_hw_isr:
-eoi
-iret
+ret
 
 .global get_eflags
 get_eflags:
@@ -363,7 +472,18 @@ ret
 
 .global get_ldtr
 get_ldtr:
-movl %cr3, %eax
+movl %cs, %eax
 # mov $0, %eax
 # sldt %ax
+ret
+
+.global task_switch
+task_switch:
+pushfl
+popl %eax
+# nested task flag
+orl $0x4000, %eax
+pushl %eax
+popfl
+iret
 ret

@@ -141,3 +141,7 @@ floppy disk controller programming notes
 data register size is not 16-bits but 16 bytes. controller commands should be passed byte by byte
 
 all commands execution are splitted into 3 phases: issue command, wait for result, read command completion status
+
+running comiled boot image using qemu and consuming 1m of memory only
+
+qemu-system-i386 -m 1 -display curses -fda tincanos.img -no-fd-bootchk -boot order=a
