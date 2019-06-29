@@ -126,7 +126,7 @@ default DMA channels assignment scheme:
 Main aspects of DMA programming (I/O ports : DMA registers association can be found in any books about DMA programming i.e. page 460 of IBM PC and Compatible)
 
 Command register (I/O port 0x8 for DMA #1): controlling the operation of DMA controller
-Status register (the same I/O port as control but for reading only): active channel request bist will be set here
+Status register (the same I/O port as control but for reading only): active channel request bit will be set here
 Mode register 
 Single mask register: can be used for masking specific DMA channel
 All mask register: can be used for bulk masking of DMA channels
@@ -144,7 +144,7 @@ bit 2 when set to 0 enables DMA controller, when set to 1 disables it
 movb $0x0, %ax
 outb %ax, $0x8
 
-also, current DMA controller state fcan be read right from the command register
+also, current DMA controller state can be read right from the command register
 
 floppy disk controller programming notes
 1. all command to controler are passed through data register (which size is 16 bits)

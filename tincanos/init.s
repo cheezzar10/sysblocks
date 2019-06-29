@@ -234,8 +234,21 @@ idt:
 .short 0x8e00
 .short 0x0
 
-# nop hardware interrupt handlers for IRQ1-IRQ15
-.rept 15
+# nop hardware interrupt handlers for IRQ1-IRQ5
+.rept 5
+.short nop_hw_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+.endr
+
+.short fdc_isr
+.short code_seg_sel
+.short 0x8e00
+.short 0x0
+
+# nop hardware interrupt handlers for IRQ7-IRQ15
+.rept 9
 .short nop_hw_isr
 .short code_seg_sel
 .short 0x8e00
@@ -294,6 +307,10 @@ movl $STACK_TOP, %esp
 
 movw $0x38, %ax
 lldt %ax 
+
+# enabling DMA controller (not necessary actually)
+# movb $0x0, %al
+# outb %al, $0x8
 
 # system task context initialization
 movw $0x28, %ax
@@ -423,6 +440,31 @@ movw %ax, %es
 eoi
 iret
 
+# floppy interrupt handler
+fdc_isr:
+pushl %eax
+
+movw $0x10, %ax
+movw %ax, %ds
+movw %ax, %es
+pushl $tm_msg
+call print
+addl $4, %esp
+
+# FDC FIFO register number
+movw $0x3f5, %dx
+
+movb $0x7, %ah
+inb %dx, %al
+inb %dx, %al
+addb $0x42, %al
+movw %ax, 0x0b81e0
+
+popl %eax
+
+eoi
+iret
+
 # nop interrupt handler for hardware interrupt
 nop_hw_isr:
 eoi
@@ -495,17 +537,87 @@ ret
 fdd_init:
 movl $0, %eax
 movl $0, %ecx
-# checking installed drive type
+
+# checking installed floppy drive type
 movb $0x10, %al
 outb %al, $0x70
 inb $0x71, %al
+
+# checking DMA controller status
+inb $0x8, %al
+
 # reading fdd main status register content
 movw $0x3f4, %dx
 inb %dx, %al
 # drive is ready, read data command can be issued
 # check for DMA status in dor register
 # READ DATA command sequence 0x6, 0x1, track (0x0), 
-# also,MFM bit should be set for read command
 # better use read track command, it's simpler
 # this way we can transfer 9k of data in one command (and placed into 12k buffer)
+
+# configuring DMA controller for read operation
+
+# 1. clearing latch (next addr/count byte will be considered low) (any value written to port 0x0c)
+outb %al, $0x0c
+# 2. masking all channels of DMA-1 (using all mask register port 0x0f)
+movb $0x0f, %al
+outb %al, $0x0f
+# 3. configuring buffer address (port 0x4)
+movw $0x7000, %ax
+outb %al, $0x04
+movb %ah, %al
+outb %al, $0x04
+# 4. configuring bytes count (buffer length - 1) (port 0x5)
+movw $0x0fff, %ax
+outb %al, $0x05
+movb %ah, %al
+outb %al, $0x05
+# 5. configuring mode (write transfer, block mode, port 0x0b)
+# 6. enable block mode transfer for channel 2 (port 0x8)
+movb $0x86, %al
+outb %al, $0x0b
+# 7. unmask channel 2 (port 0x0a)
+movb $0x2, %al
+outb %al, $0x0a
+# 8. wait for IRQ6 when data ready
+
+# FDC FIFO register number
+movw $0x3f5, %dx
+
+# sending READ DATA command with MFM (double density) flag set
+movb $0x46, %al
+outb %al, %dx
+
+# selecting head 0, disk 0
+movb $0x2, %al
+outb %al, %dx
+
+# selecting track 0
+movb $0, %al
+outb %al, %dx
+
+# repeating head 0 selection
+outb %al, %dx
+
+# reading starting from sector 1
+movb $1, %al
+outb %al, %dx
+
+# configuring sector size = 512 bytes
+movb $0x2, %al
+outb %al, %dx
+
+# reading until sector 9
+movb $0x7, %al
+outb %al, %dx
+
+# configuring GAP3 paramter to standard 3 1/2 value = 27 (intersector interval size)
+movb $27, %al
+outb %al, %dx
+
+# sector size was configured to non-zero value, so sending 0xff
+movb $0xff, %al
+outb %al, %dx
+
+movl $0xaa, %eax
 ret

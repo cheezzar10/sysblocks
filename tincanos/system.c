@@ -156,6 +156,8 @@ void sys_init() {
 	int2hex(fdd_status, &hex_buf[2]);
 	print(hex_buf);
 
+	print("func returned");
+
 	// TODO place syscalls dispatcher here
 	for (;;);
 }
