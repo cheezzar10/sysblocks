@@ -157,3 +157,26 @@ all commands execution are splitted into 3 phases: issue command, wait for resul
 running comiled boot image using qemu and consuming 1m of memory only
 
 qemu-system-i386 -m 1 -display curses -fda tincanos.img -no-fd-bootchk -boot order=a
+
+fdb disk can be added to make fdc driver code work as expected
+
+* memory paging notes
+
+virtual address translation scheme
+
+1. cr3 register holds the physical base address of "page directory"
+
+upper 10 bits of virtual address points to "page directory" entry. 10 bits means that there are at most 1024 entries in "page directory"
+
+each "page directory" entry is the "page table" descriptor and is 4 bytes long and has the following structure:
+upper 20 bits point to "page table" structure
+
+each "page table" entry is the descriptor is also 4 bytes long 
+upper 20 bits point to physical location in memory
+
+and lower bits of virtual address is the offset relative to physical location stored in "page table"
+
+the next 10 bits of virtual address is the pointer to entry in "page table"
+
+each of the above entries has several flags and one of them is "present" bit
+if this bit is clear then PF fault will be generated in case of access to this entry and 32-bit linear address which generated this fault will be loaded to cr2
