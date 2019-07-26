@@ -180,3 +180,22 @@ the next 10 bits of virtual address is the pointer to entry in "page table"
 
 each of the above entries has several flags and one of them is "present" bit
 if this bit is clear then PF fault will be generated in case of access to this entry and 32-bit linear address which generated this fault will be loaded to cr2
+
+* COM port programming notes
+1. check for configured COM ports - scan BIOS memory starting from 0x040 the next 8 bytes each describe I/O ports base localtion for COM1-4
+2. for example, default base I/O port for COM1 is 0x3f8. Starting from this I/O address each COM port has 8 1-byte registers ( see list below)
+3f8 - receiver/transmitter register (can be used to write baud settings LSB)
+3f9 - interrupt enable register (can be used to write baud settings MSB)
+3fa - interrupt identification register
+3fb - line control register
+3fc - modem control register
+3fd - line status register
+3fe - modem status register
+3ff - scratch register
+
+3. COM port initialization sequence
+a. configure baud settings by setting DLAB bit (bit 7) of LCR (line control reegister): write LSB/MSB to corresponding ports
+b. clear DLAB bit and fill LCR register with line settings
+c. configure COM port operation mode (interrupt driven or not) by writing to IER (interrupt enable register)
+
+4. when working with COM port in interrupt disabled mode we use LSR (line status register) by checking bits 0 (data received) and 6 (transmitter buffer loaded when set)
