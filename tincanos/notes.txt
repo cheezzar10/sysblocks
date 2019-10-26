@@ -199,3 +199,5 @@ b. clear DLAB bit and fill LCR register with line settings
 c. configure COM port operation mode (interrupt driven or not) by writing to IER (interrupt enable register)
 
 4. when working with COM port in interrupt disabled mode we use LSR (line status register) by checking bits 0 (data received) and 6 (transmitter buffer loaded when set)
+
+additional command line parameters can be added to qemu command line to redirect serial port: 2 alternatives - -nographic or -serial stdio

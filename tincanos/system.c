@@ -1,6 +1,7 @@
 typedef __SIZE_TYPE__ size_t;
 
 typedef unsigned int uint32_t;
+typedef unsigned short uint16_t;
 
 // the origin of screen buffer in memory
 #define SCRN_BUF_ORG 0xb8000
@@ -17,6 +18,9 @@ typedef unsigned int uint32_t;
 #define USR_CODE_SEG_SEL 0x1b
 #define USR_DATA_SEG_SEL 0x23
 #define USR_TSS_SEL 0x30
+
+#define BIOS_DATA_AREA 0x400
+#define COM1 0
 
 extern struct tss* sys_tss_ptr;
 extern struct tss* usr_tss_ptr;
@@ -47,6 +51,14 @@ uint32_t fdd_init();
 // TODO uint16_t actually
 void task_switch(uint32_t tss_sel);
 
+uint32_t get_com_port_base(uint32_t port_num);
+
+void init_com_port(uint32_t port_base);
+
+uint32_t get_com_port_status(uint32_t port_base);
+
+void putc(uint32_t port_base, char c);
+
 // end of system initialization functions header
 
 struct tss {
@@ -58,7 +70,7 @@ struct tss {
 	uint32_t esp2;
 	uint32_t ss2;
 	uint32_t cr3;
-	uint32_t eip;
+	void* eip;
 	uint32_t eflags;
 	uint32_t eax;
 	uint32_t ecx;
@@ -148,15 +160,25 @@ void sys_init() {
 	// sys_tss_ptr->pvt = USR_TSS_SEL;
 	// task_switch(USR_TSS_SEL);
 
-	uint32_t fdd_status = fdd_init();
+	// uint32_t fdd_status = fdd_init();
 
-	print("fdd status: ");
+	uint32_t com_port_base = get_com_port_base(COM1);
+	// currently performing default initialization (baud settings, parity ect)
+	init_com_port(com_port_base);
+
+	uint32_t com_status = get_com_port_status(com_port_base);	
+
+	putc(com_port_base, 0x8);
+	putc(com_port_base, 'h');
+	putc(com_port_base, 'e');
+
+	com_status = get_com_port_status(com_port_base);
+
+	print("COM1 status: ");
+	
 	char hex_buf[12] = "0x00000000\n";
-	// int2hex(*(uint32_t*)(usr_tss_base + 32), &hex_buf[2]);
-	int2hex(fdd_status, &hex_buf[2]);
+	int2hex(com_status, &hex_buf[2]);
 	print(hex_buf);
-
-	print("func returned");
 
 	// TODO place syscalls dispatcher here
 	for (;;);
@@ -190,4 +212,9 @@ void int2hex(uint32_t n, char* buf) {
 		buf[i-1] = HEX_DIGITS[n & 0xf];
 		n >>= 4;
 	}
+}
+
+uint32_t get_com_port_base(uint32_t port_num) {
+	uint16_t* bios_data_area_ptr = (uint16_t*)BIOS_DATA_AREA;
+	return bios_data_area_ptr[port_num];
 }

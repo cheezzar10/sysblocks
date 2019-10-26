@@ -291,6 +291,33 @@ outb %al, $0xa0
 popl %eax
 .endm
 
+# the following two macroses are not fully implemented
+# they should have a parameter telling how much space
+# should be reserved on stack for local variables
+.macro create_stack_frame
+# stack frame setup
+pushl %ebp
+movl %esp, %ebp
+
+# here we should subl $?, %esp to reserve some space on the stack 
+
+# saving registers
+pushl %ebx
+pushl %esi
+pushl %edi
+.endm
+
+.macro destroy_stack_frame
+# restoring registers
+popl %edi
+popl %esi
+popl %ebx
+
+# stack frame destruction
+movl %ebp, %esp
+popl %ebp
+.endm
+
 # here you can perform data and stack segment initialization and continue execution in pure 32 bit mode
 
 # stack and data segment initialization
@@ -455,6 +482,7 @@ addl $4, %esp
 movw $0x3f5, %dx
 
 movb $0x7, %ah
+# reading redurned status bytes one by one
 inb %dx, %al
 inb %dx, %al
 addb $0x42, %al
@@ -528,6 +556,103 @@ orl $0x4000, %eax
 pushl %eax
 popfl
 iret
+ret
+
+# COM port interrupt enable register offset
+.equ COM_IER_OFFSET, 1
+# COM port line control register offset
+.equ COM_LCR_OFFSET, 3
+# COM port line status register offset
+.equ COM_LSR_OFFSET, 5
+
+.global init_com_port
+init_com_port:
+
+create_stack_frame
+
+xorl %eax, %eax
+xorl %ebx, %ebx
+
+# storing com port base register which was passed as parameter
+movw 8(%ebp), %bx
+
+# 1. configuring port baud settings
+movl %ebx, %edx
+addl $COM_LCR_OFFSET, %edx
+
+# setting DLAB bit in LCR register before baud settings write
+movb 0x80, %al
+outb %al, %dx
+
+# configuring max speed 115 200 bits per second
+movw 0x0001, %ax
+
+# pointing port addressing register dx to RC/TX port
+movl %ebx, %edx
+# writing data rate divisor LSB to port
+outb %al, %dx
+
+addl $COM_IER_OFFSET, %edx
+# writing data rate divisor MSB to port
+shrl $8, %eax
+outb %al, %dx
+
+# 2. configuring port mode
+movl %ebx, %edx
+addl $COM_LCR_OFFSET, %edx
+
+# 8 data  bits, 1 stop bit, no parity
+movb $0x3, %al
+outb %al, %dx
+
+# 3. configuring COM port to operate in non-interrupt driven mode
+
+# zeroing out
+xorl %eax, %eax
+movl %ebx, %edx
+addl $COM_IER_OFFSET, %edx
+# writing all zeroes to IER
+outb %al, %dx
+
+destroy_stack_frame
+
+ret
+
+.global get_com_port_status
+get_com_port_status:
+
+create_stack_frame
+
+xorl %eax, %eax
+xorl %edx, %edx
+
+movw 8(%ebp), %dx
+addl $COM_LSR_OFFSET, %edx
+
+inb %dx, %al
+
+destroy_stack_frame
+
+ret
+
+.global putc
+putc:
+
+create_stack_frame
+
+xorl %eax, %eax
+xorl %edx, %edx
+
+# reading COM port base parameter
+movw 8(%ebp), %dx
+
+# reading character to write
+movb 12(%ebp), %al
+
+outb %al, %dx
+
+destroy_stack_frame
+
 ret
 
 # fdd status = 0x80 (ready), fdd types = 0x40
