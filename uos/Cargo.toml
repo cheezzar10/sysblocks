@@ -1,0 +1,9 @@
+[package]
+name = "uos"
+version = "0.1.0"
+authors = ["andrey <andrey@aurora.local>"]
+edition = "2015"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
