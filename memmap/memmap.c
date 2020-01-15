@@ -2,6 +2,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/times.h>
 
 #ifdef __linux__
 // required for pid_t
@@ -49,6 +50,9 @@ static void fill_with_rnd_bytes(void* buf, size_t len) {
     
     struct timeval start;
     gettimeofday(&start, NULL);
+
+	struct tms tms_buf;
+	clock_t fill_start = times(&tms_buf);
     
     // seeding random number generator
     time_t t = time(NULL);
@@ -68,6 +72,9 @@ static void fill_with_rnd_bytes(void* buf, size_t len) {
     rnd = random();
     size_t pos = it * sizeof(rnd);
     memcpy(buf + (it * sizeof(rnd)), &rnd, len - pos);
+
+	clock_t fill_end = times(&tms_buf);
+	printf("fill duration in clock ticks: %d\n", fill_end - fill_start);
     
     struct timeval end;
     gettimeofday(&end, NULL);
@@ -99,11 +106,17 @@ static void create_mem_mapping() {
 		perror("destination memory block allocation failed");
 		exit(EXIT_FAILURE);
 	}
-    
+
     struct timeval start;
     gettimeofday(&start, NULL);
+
+	struct tms t;
+	clock_t memcpy_start = times(&t);
     
     memcpy(dest_mem_blk, mem_blk, mem_blk_len);
+
+	clock_t memcpy_end = times(&t);
+	printf("memcpy duration in clock ticks: %d\n", memcpy_end - memcpy_start);
     
     struct timeval end;
     gettimeofday(&end, NULL);
