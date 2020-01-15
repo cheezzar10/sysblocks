@@ -1,0 +1,31 @@
+using specific compiler version for current project
+
+$ rustup override set 1.38.0
+
+displaying current list of per-project overrides
+
+$ rustup override list
+
+deacticating override for the current project
+
+$ rustup override unset
+
+installing system wide version of development tools
+
+$ rustup install 1.38.0
+
+configuring newly installed version of development tools as default
+
+$ rustup default 1.38.0
+
+adding new compilation target 
+
+$ rustup target add i686-apple-darwin
+
+displaying list of available components
+
+$ rustup component list
+
+installing new component
+
+$ rustup component add rls-preview
