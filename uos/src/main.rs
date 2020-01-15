@@ -3,6 +3,7 @@
 extern crate uos;
 
 use uos::util::RingBuf;
+use uos::alloc;
 
 static mut KBD_BUF: RingBuf = RingBuf::new();
 
@@ -36,6 +37,9 @@ static mut PROCS: [Process; 2] = [
 ];
 
 static mut CUR_TASK_IDX: usize = 1;
+
+// emulating memory page, in real world we will point to the block of hw memory
+static mut MEM_BLOCK: [u32; 1024] = [0; 1024];
 
 // should be defined as extern
 // static CUR_TASK_PTR: *mut Process = &mut PROCS[0];
@@ -73,6 +77,8 @@ fn main() {
 		println!("current task: {}", PROCS[CUR_TASK_IDX].pid);
 		println!("another  task: {}", PROCS[CUR_TASK_IDX - 1].pid);
 		// match running process 
+
+		let alloc = alloc::Allocator::new(MEM_BLOCK.as_mut_ptr());
 	}
 }
 
