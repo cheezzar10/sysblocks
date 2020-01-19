@@ -43,8 +43,19 @@ impl Allocator {
 		loop {
 			println!("prev = {:p}, curr = {:p}", prev_blk, curr_blk);
 
+			if (*curr_blk).size == size_blocks {
+				println!("found free block of exact size {} = {}", (*curr_blk).size, size_blocks);
+				
+				alloc_blk = curr_blk;
+				println!("allocated block header addr = {:p}", alloc_blk);
+				
+				(*prev_blk).next = (*curr_blk).next;
+				
+				break;
+			}
+
 			if (*curr_blk).size > size_blocks {
-				println!("allocating in free block of size {} > {}", (*curr_blk).size, size_blocks);
+				println!("found suitable free block of size {} > {}", (*curr_blk).size, size_blocks);
 
 				// adjusting current block available space (allocated blocks + header block)
 				(*curr_blk).size -= size_blocks + 1;
@@ -57,7 +68,15 @@ impl Allocator {
 				break;
 			}
 
-			// TODO add exact size matching case
+			if curr_blk == self.free_block {
+				println!("allocation failed");
+				// list wrapped around
+				break;
+			}
+			
+			// advancing further
+			prev_blk = curr_blk;
+			curr_blk = (*curr_blk).next;
 		}
 
 		if !alloc_blk.is_null() {
@@ -68,23 +87,46 @@ impl Allocator {
 	}
 
 	pub unsafe fn dealloc(&self, ptr: *mut u8) {
-		println!("deallocating memory block with addr = {:p}", ptr);
+		println!("deallocating memory at addr = {:p}", ptr);
 
 		// free list search pointers
 		let mut prev_blk = self.free_block;
 		let mut curr_blk = (*prev_blk).next;
 
 		// getting pointer to the deallocating block header
-		let dealloc_block: *mut Header = (ptr as *mut Header).wrapping_sub(1);
-		println!("deallocating memory block header addr = {:p}", dealloc_block);
+		let dealloc_blk: *mut Header = (ptr as *mut Header).wrapping_sub(1);
+		println!("found deallocating memory block at addr = {:p} of size {}", dealloc_blk, (*dealloc_blk).size);
 
-		loop {
-			// free list wrap around condition
-			if prev_blk >= curr_blk {
-				(*prev_blk).next = dealloc_block;
-				(*dealloc_block).next = curr_blk;
+		while prev_blk < curr_blk {
+			println!("prev = {:p}, curr = {:p}", prev_blk, curr_blk);
+
+			// found deallocating block position in free list
+			if prev_blk < dealloc_blk && curr_blk > dealloc_blk {
+				println!("deallocating memory block is placed between blocks {:p} and {:p}", prev_blk, curr_blk);
 				break;
 			}
+			
+			// advancing further
+			prev_blk = curr_blk;
+			curr_blk = (*curr_blk).next;
+		}
+
+		if prev_blk.wrapping_add((*prev_blk).size + 1) == dealloc_blk {
+			println!("merging deallocating memory block with previous block of size = {}", (*prev_blk).size);
+
+			(*prev_blk).size += (*dealloc_blk).size + 1;
+		} else if dealloc_blk.wrapping_add((*dealloc_blk).size + 1) == curr_blk {
+			println!("merging deallocating memory block with next block of size = {}", (*curr_blk).size);
+			
+			(*dealloc_blk).size += (*curr_blk).size + 1;
+			
+			(*prev_blk).next = dealloc_blk;
+			(*dealloc_blk).next = (*curr_blk).next;
+		} else {
+			println!("deallocating memory block added to free list: prev = {:p}, next = {:p}", prev_blk, curr_blk);
+
+			(*prev_blk).next = dealloc_blk;
+			(*dealloc_blk).next = curr_blk;
 		}
 	}
 }

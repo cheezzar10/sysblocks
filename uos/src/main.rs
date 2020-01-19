@@ -80,28 +80,64 @@ fn main() {
 		println!("another task: {}", PROCS[CUR_TASK_IDX - 1].pid);
 		// match running process 
 
-		println!("\n*** sequential allocator test ***");
-		let alloc = alloc::Allocator::new(MEM_BLOCK.as_mut_ptr(), mem::size_of_val(&MEM_BLOCK));
-		let proc_descr_ptr: *mut Process = alloc.alloc(mem::size_of::<Process>()) as *mut Process;
-
-		// better use as_ref and match returned Option
-		if !proc_descr_ptr.is_null() {
-			if let Some(pd) = proc_descr_ptr.as_mut() {
-				pd.pid = 1;
-			}
-		}
-
-		println!("mem dump: {:?}", &MEM_BLOCK[..15]);
-
-		let proc2 = alloc.alloc(mem::size_of::<Process>()) as *mut Process;
-		if !proc2.is_null() {
-			(*proc2).pid = 2;
-		}
-
-		alloc.dealloc(proc_descr_ptr as *mut u8);
-
-		println!("ring buf mem size: {}", mem::size_of::<RingBuf>());
+		test_allocator();
 	}
+}
+
+unsafe fn test_allocator() {
+	println!("\n*** sequential allocator test ***");
+	let allocator = alloc::Allocator::new(MEM_BLOCK.as_mut_ptr(), mem::size_of_val(&MEM_BLOCK));
+
+	let mut ring_buf1 = allocator.alloc(mem::size_of::<RingBuf>()) as *mut RingBuf;
+	allocator.dealloc(ring_buf1 as *mut u8);
+	
+	ring_buf1 = allocator.alloc(mem::size_of::<RingBuf>()) as *mut RingBuf;
+	if !ring_buf1.is_null() {
+		if let Some(rbr) = ring_buf1.as_mut() {
+			rbr.push_back(b'a');
+		}
+	}
+
+	let ring_buf2 = allocator.alloc(mem::size_of::<RingBuf>()) as *mut RingBuf;
+	if !ring_buf2.is_null() {
+		if let Some(rbr) = ring_buf2.as_mut() {
+			rbr.push_back(b'c');
+		}
+	}
+
+	// allocating blocks of memory which are larger than others
+	let proc_descr_ptr: *mut Process = allocator.alloc(mem::size_of::<Process>()) as *mut Process;
+	if !proc_descr_ptr.is_null() {
+		if let Some(pd) = proc_descr_ptr.as_mut() {
+			pd.pid = 1;
+		}
+	}
+
+	println!("mem dump: {:?}", &MEM_BLOCK[..15]);
+
+	let proc2 = allocator.alloc(mem::size_of::<Process>()) as *mut Process;
+	if !proc2.is_null() {
+		(*proc2).pid = 2;
+	}
+	
+	let ring_buf3 = allocator.alloc(mem::size_of::<RingBuf>()) as *mut RingBuf;
+	if !ring_buf3.is_null() {
+		if let Some(rbr) = ring_buf3.as_mut() {
+			rbr.push_back(b'd');
+		}
+	}
+	
+	// out of memory condition check
+	let proc3 = allocator.alloc(mem::size_of::<Process>());
+	assert!(proc3.is_null());
+
+	allocator.dealloc(ring_buf1 as *mut u8);
+	allocator.dealloc(proc_descr_ptr as *mut u8);
+	
+	let proc4 = allocator.alloc(mem::size_of::<Process>());
+	assert!(!proc4.is_null());
+	
+	allocator.dealloc(ring_buf2 as *mut u8);
 }
 
 fn print_buf_byte(ob: &Option<u8>) {
