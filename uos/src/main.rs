@@ -2,6 +2,8 @@
 
 extern crate uos;
 
+use std::mem;
+
 use uos::util::RingBuf;
 use uos::alloc;
 
@@ -39,7 +41,7 @@ static mut PROCS: [Process; 2] = [
 static mut CUR_TASK_IDX: usize = 1;
 
 // emulating memory page, in real world we will point to the block of hw memory
-static mut MEM_BLOCK: [u32; 1024] = [0; 1024];
+static mut MEM_BLOCK: [u8; 256] = [0; 256];
 
 // should be defined as extern
 // static CUR_TASK_PTR: *mut Process = &mut PROCS[0];
@@ -75,10 +77,30 @@ fn main() {
 		}
 
 		println!("current task: {}", PROCS[CUR_TASK_IDX].pid);
-		println!("another  task: {}", PROCS[CUR_TASK_IDX - 1].pid);
+		println!("another task: {}", PROCS[CUR_TASK_IDX - 1].pid);
 		// match running process 
 
-		let alloc = alloc::Allocator::new(MEM_BLOCK.as_mut_ptr());
+		println!("\n*** sequential allocator test ***");
+		let alloc = alloc::Allocator::new(MEM_BLOCK.as_mut_ptr(), mem::size_of_val(&MEM_BLOCK));
+		let proc_descr_ptr: *mut Process = alloc.alloc(mem::size_of::<Process>()) as *mut Process;
+
+		// better use as_ref and match returned Option
+		if !proc_descr_ptr.is_null() {
+			if let Some(pd) = proc_descr_ptr.as_mut() {
+				pd.pid = 1;
+			}
+		}
+
+		println!("mem dump: {:?}", &MEM_BLOCK[..15]);
+
+		let proc2 = alloc.alloc(mem::size_of::<Process>()) as *mut Process;
+		if !proc2.is_null() {
+			(*proc2).pid = 2;
+		}
+
+		alloc.dealloc(proc_descr_ptr as *mut u8);
+
+		println!("ring buf mem size: {}", mem::size_of::<RingBuf>());
 	}
 }
 
