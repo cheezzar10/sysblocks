@@ -136,3 +136,54 @@ struct Header {
 	next: *mut Header,
 	size: usize
 }
+
+#[cfg(test)]
+mod tests {
+	use std::mem::*;
+
+	use ::alloc::*;
+
+	struct Task {
+		tid: usize,
+		stack: *mut u32
+	}
+
+	struct TaskState {
+		eax: u32,
+		ebx: u32,
+		ecx: u32,
+		edx: u32
+	}
+
+	#[test]
+	fn test_first_alloc_dealloc() {
+		let mut mem: [u8; 64] = [0; 64];
+		// saving our local memory origin pointer
+		let mem_org: *const u8 = &mem as *const u8;
+
+		let a = Allocator::new(mem.as_mut_ptr(), size_of_val(&mem));
+
+		// cargo test -- --nocapture to see error messages
+		println!("task struct size = {}", size_of::<Task>());
+
+		assert_eq!(8, size_of::<Task>());
+		assert_eq!(16, size_of::<TaskState>());
+	
+		unsafe {
+			let task_raw_ptr = a.alloc(size_of::<Task>());
+			let task_ptr: *mut Task = task_raw_ptr as *mut Task;
+			if let Some(task_ref) = task_ptr.as_mut() {
+				assert_eq!(0, task_ref.tid);
+
+				// checking allocated memory block location
+				assert_eq!(mem_org.wrapping_add(7 * size_of::<Task>()), task_raw_ptr);
+				// checking allocated block header validity
+				let mem_blk: *mut Header = task_ptr.wrapping_sub(1) as *mut Header;
+				assert_eq!(1, (*mem_blk).size);
+
+				task_ref.tid = 1;
+				task_ref.stack = 0xffff as *mut u32;
+			}
+		}
+	}
+}
