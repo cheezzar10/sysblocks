@@ -159,7 +159,7 @@ mod tests {
 	fn test_first_alloc_dealloc() {
 		let mut mem: [u8; 64] = [0; 64];
 		// saving our local memory origin pointer
-		let mem_org: *const u8 = &mem as *const u8;
+		let mem_org: *const u8 = mem.as_ptr();
 
 		let a = Allocator::new(mem.as_mut_ptr(), size_of_val(&mem));
 
@@ -184,6 +184,36 @@ mod tests {
 				task_ref.tid = 1;
 				task_ref.stack = 0xffff as *mut u32;
 			}
+		}
+	}
+
+	#[test]
+	fn test_alloc_two_small_and_dealloc() {
+		let mut mem: [u8; 64] = [0; 64];
+		let mem_ptr: *const u8 = mem.as_ptr();
+		let head_mem_blk: *const Header = mem_ptr as *const Header;
+
+		let allocator = Allocator::new(mem.as_mut_ptr(), size_of_val(&mem));
+
+		unsafe {
+			let task1_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert_eq!(5, (*head_mem_blk).size);
+
+			let task2_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert_eq!(3, (*head_mem_blk).size);
+
+			// memory layout check
+			assert_eq!(mem_ptr.wrapping_add(7 * size_of::<Task>()), task1_mem_ptr);
+			assert_eq!(mem_ptr.wrapping_add(5 * size_of::<Task>()), task2_mem_ptr);
+
+			let task1_mem_blk: *mut Header = (task1_mem_ptr as *mut Task).wrapping_sub(1) as *mut Header;
+
+			allocator.dealloc(task1_mem_ptr);
+
+			// getting head of free list and checking that it's next link points to deallocated mem block
+			assert_eq!(3, (*head_mem_blk).size);
+			assert_eq!(task1_mem_blk, (*head_mem_blk).next);
+			
 		}
 	}
 }
