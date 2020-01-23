@@ -222,4 +222,69 @@ mod tests {
 			assert_eq!(task1_mem_blk, (*head_mem_blk).next);
 		}
 	}
+
+	#[test]
+	fn test_var_blocks_alloc_dealloc() {
+		let mut mem: [u8; 128] = [0; 128];
+		let mem_ptr: *const u8 = mem.as_ptr();
+		let head_mem_blk: *const Header = mem_ptr as *const Header;
+		
+		let allocator = Allocator::new(mem.as_mut_ptr(), size_of_val(&mem));
+
+		unsafe {
+			// allocating small blocks
+			let task1_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert_eq!(13, (*head_mem_blk).size);
+
+			let task2_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert_eq!(11, (*head_mem_blk).size);
+
+			// allocating large block
+			let state1_mem_ptr = allocator.alloc(size_of::<TaskState>());
+			assert_eq!(8, (*head_mem_blk).size);
+
+			// allocating another small blocks
+			let task3_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert_eq!(6, (*head_mem_blk).size);
+
+			let task4_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert_eq!(4, (*head_mem_blk).size);
+
+			// memory layout check
+			assert_eq!(mem_ptr.wrapping_add(15 * size_of::<Task>()), task1_mem_ptr);
+			assert_eq!(mem_ptr.wrapping_add(13 * size_of::<Task>()), task2_mem_ptr);
+			assert_eq!(mem_ptr.wrapping_add(10 * size_of::<Task>()), state1_mem_ptr);
+
+			// memory block sizes check
+			let task1_mem_blk: *mut Header = (task1_mem_ptr as *mut Header).wrapping_sub(1);
+			assert_eq!(1, (*task1_mem_blk).size);
+
+			let task2_mem_blk: *mut Header = (task2_mem_ptr as *mut Header).wrapping_sub(1);
+			assert_eq!(1, (*task2_mem_blk).size);
+
+			let state1_mem_blk: *mut Header = (state1_mem_ptr as *mut Header).wrapping_sub(1);
+			assert_eq!(2, (*state1_mem_blk).size);
+
+			// deallocating blocks and checking free list pointers correctness
+			allocator.dealloc(task1_mem_ptr);
+
+			assert_eq!(4, (*head_mem_blk).size);
+			assert_eq!(task1_mem_blk, (*head_mem_blk).next);
+
+			allocator.dealloc(state1_mem_ptr);
+			
+			assert_eq!(4, (*head_mem_blk).size);
+			assert_eq!(state1_mem_blk, (*head_mem_blk).next);
+			assert_eq!(task1_mem_blk, (*state1_mem_blk).next);
+
+			let task3_mem_blk: *mut Header = (task3_mem_ptr as *mut Header).wrapping_sub(1);
+
+			// deallocate task3 and check that it's merged with the next block
+			allocator.dealloc(task3_mem_ptr);
+
+			assert_eq!(4, (*task3_mem_blk).size);
+			assert_eq!(task3_mem_blk, (*head_mem_blk).next);
+			assert_eq!(task1_mem_blk, (*task3_mem_blk).next);
+		}
+	}
 }
