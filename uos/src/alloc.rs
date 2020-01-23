@@ -214,6 +214,12 @@ mod tests {
 			assert_eq!(3, (*head_mem_blk).size);
 			assert_eq!(task1_mem_blk, (*head_mem_blk).next);
 			
+			allocator.dealloc(task2_mem_ptr);
+
+			// checking that deallocated block was merged with the head of the free list
+			assert_eq!(5, (*head_mem_blk).size);
+			// next link should still point to the small block
+			assert_eq!(task1_mem_blk, (*head_mem_blk).next);
 		}
 	}
 }
