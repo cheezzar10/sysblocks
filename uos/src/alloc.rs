@@ -22,7 +22,7 @@ impl Allocator {
 		};
 
 		// !!! this code will work only if managed memory area is zeroed
-		if free_blk.size == 0 {
+		if free_blk.next.is_null() {
 			free_blk.size = (self.mem_size - mem::size_of::<Header>()) / mem::size_of::<Header>();
 			println!("free list initialized: {} blocks available", free_blk.size);
 
@@ -31,7 +31,8 @@ impl Allocator {
 		}
 
 		// TODO fix me, should proper align this memory block, try to use ptr::align_offset
-		let size_blocks = size / mem::size_of::<Header>();
+		// let size_blocks = size / mem::size_of::<Header>();
+		let size_blocks = ((size + (mem::size_of::<Header>() - 1)) & (!mem::size_of::<Header>() + 1)) / mem::size_of::<Header>();
 		println!("trying to allocate {} blocks", size_blocks);
 
 		// free list search pointers
@@ -285,6 +286,40 @@ mod tests {
 			assert_eq!(4, (*task3_mem_blk).size);
 			assert_eq!(task3_mem_blk, (*head_mem_blk).next);
 			assert_eq!(task1_mem_blk, (*task3_mem_blk).next);
+		}
+	}
+
+	#[test]
+	fn test_align_and_oom() {
+		let mut mem: [u8; 64] = [0; 64];
+		let mem_ptr: *const u8 = mem.as_ptr();
+		let head_mem_blk: *const Header = mem_ptr as *const Header;
+		
+		let allocator = Allocator::new(mem.as_mut_ptr(), size_of_val(&mem));
+
+		unsafe {
+			// trying to allocate block of memory with size not aligned to 8 bytes
+			let alloc_mem_ptr = allocator.alloc(12);
+
+			assert_eq!(4, (*head_mem_blk).size);
+			assert_eq!(mem_ptr.wrapping_add(6 * size_of::<Header>()), alloc_mem_ptr);
+
+			let alloc_mem_blk: *mut Header = (alloc_mem_ptr as *mut Header).wrapping_sub(1);
+			assert_eq!(2, (*alloc_mem_blk).size);
+
+			// checking free list structure
+			assert_eq!((*head_mem_blk).next as *const Header, head_mem_blk);
+
+			// trying to exhaust all available memory
+			let task1_mem_ptr = allocator.alloc(size_of::<Task>());
+			let task2_mem_ptr = allocator.alloc(size_of::<Task>());
+
+			// checking that block doesn't contain more memory
+			assert_eq!(0, (*head_mem_blk).size);
+
+			// checking that we are unable to allocate more memory
+			let task3_mem_ptr = allocator.alloc(size_of::<Task>());
+			assert!(task3_mem_ptr.is_null());
 		}
 	}
 }
