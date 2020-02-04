@@ -6,6 +6,7 @@ use std::mem;
 
 use uos::util::RingBuf;
 use uos::alloc;
+use uos::vec;
 
 static mut KBD_BUF: RingBuf = RingBuf::new();
 

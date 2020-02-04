@@ -1,5 +1,34 @@
 use std::ptr;
 use std::mem;
+use std::sync;
+
+static mut HEAP: [u8; 4096] = [0; 4096];
+
+static mut GLOBAL_ALLOC: Allocator = Allocator::new(ptr::null_mut(), 0);
+
+static GLOBAL_ALLOC_INIT: sync::Once = sync::Once::new();
+
+unsafe fn init_global_alloc() {
+	GLOBAL_ALLOC_INIT.call_once(|| {
+		GLOBAL_ALLOC = Allocator::new(HEAP.as_mut_ptr(), mem::size_of_val(&HEAP));
+	});
+}
+
+pub fn alloc(size: usize) -> *mut u8 {
+	unsafe {
+		init_global_alloc();
+
+		GLOBAL_ALLOC.alloc(size)
+	}
+}
+
+pub fn dealloc(ptr: *mut u8) {
+	unsafe {
+		init_global_alloc();
+
+		GLOBAL_ALLOC.dealloc(ptr);
+	}
+}
 
 pub struct Allocator {
 	mem_size: usize,
