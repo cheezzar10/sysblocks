@@ -3,17 +3,22 @@ use std::mem;
 use ::alloc;
 
 pub struct Vec<T> {
-	data_ptr: *mut T,
-	size: usize,
-	capacity: usize,
+	buf: *mut T,
+	len: usize,
+	cap: usize,
 }
 
 impl<T> Vec<T> {
-	fn new(cap: usize) -> Self {
-		Self { 
-			data_ptr: alloc::alloc(cap * mem::size_of::<T>()) as *mut T, 
-			size: 0, 
-			capacity: cap 
+	fn new(cap: usize) -> Vec<T> {
+		let alloc_len = cap.checked_mul(mem::size_of::<T>());
+		match alloc_len {
+			Some(l) => Vec { 
+				// better use checked_mul to catch overflow error
+				buf: alloc::alloc(cap * mem::size_of::<T>()) as *mut T, 
+				len: 0, 
+				cap: cap 
+			},
+			_ => panic!("vector capacity overflow!")
 		}
 	}
 }
