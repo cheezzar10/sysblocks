@@ -82,7 +82,20 @@ fn main() {
 		// match running process 
 
 		test_allocator();
+
+		test_vector();
 	}
+}
+
+fn test_vector() {
+	let procs: vec::Vec<Process> = vec::Vec::new(16);
+
+	println!("\n*** vector test ***");
+
+	println!("process struct size: {}", mem::size_of::<Process>());
+
+	println!("processes vector length: {}", procs.len());
+	println!("processes vector capacity: {}", procs.cap());
 }
 
 unsafe fn test_allocator() {
@@ -139,6 +152,8 @@ unsafe fn test_allocator() {
 	assert!(!proc4.is_null());
 	
 	allocator.dealloc(ring_buf2 as *mut u8);
+
+	println!("\n*** sequential allocator test end ***");
 }
 
 fn print_buf_byte(ob: &Option<u8>) {
