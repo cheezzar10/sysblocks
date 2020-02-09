@@ -3,6 +3,8 @@
 extern crate uos;
 
 use std::mem;
+use std::fmt;
+use std::slice;
 
 use uos::util::RingBuf;
 use uos::alloc;
@@ -47,6 +49,17 @@ static mut MEM_BLOCK: [u8; 256] = [0; 256];
 // should be defined as extern
 // static CUR_TASK_PTR: *mut Process = &mut PROCS[0];
 
+struct Point {
+	x: i32,
+	y: i32
+}
+
+impl fmt::Display for Point {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Point @{:p}: {{ x: {}, y: {} }}", self, self.x, self.y)
+	}
+}
+
 fn main() {
 	byte_arrays_check();
 	int_arrays_check();
@@ -83,19 +96,49 @@ fn main() {
 
 		test_allocator();
 
-		test_vector();
+		test_tasks_vector();
+
+		test_points_vector();
 	}
 }
 
-fn test_vector() {
+fn test_tasks_vector() {
 	let procs: vec::Vec<Process> = vec::Vec::new(16);
 
-	println!("\n*** vector test ***");
+	println!("\n*** tasks vector test ***");
 
 	println!("process struct size: {}", mem::size_of::<Process>());
 
 	println!("processes vector length: {}", procs.len());
 	println!("processes vector capacity: {}", procs.cap());
+
+	println!("\n*** tasks vector test end ***");
+}
+
+fn test_points_vector() {
+	println!("\n*** points vector test ***");
+
+	let p1 = Point { x: 11, y: 22 };
+	println!("p1 = {}", p1);
+
+	let mut points: vec::Vec<Point> = vec::Vec::new(8);
+	points.push(p1);
+
+	// vector is now the owner of p1
+	// println!("p1 = {}", p1);
+
+	if let Some(p) = points.pop() {
+		points.push(Point { x: 44, y: 55 });
+
+		unsafe {
+			let p_ptr: *const Point = &p;
+			println!("mem @{:p} = {:?}", p_ptr, slice::from_raw_parts(p_ptr as *const u32, 4));
+		}
+
+		println!("popped p = {}", p);
+	}
+
+	println!("\n*** points vector test end");
 }
 
 unsafe fn test_allocator() {

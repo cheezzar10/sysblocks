@@ -36,7 +36,7 @@ impl<T> Vec<T> {
 		println!("vector buffer addr: {:p}", self.buf);
 
 		let val_addr = self.buf.wrapping_add(self.len);
-		println!("inserting element location addr: {:p}", val_addr);
+		println!("pushing element at addr: {:p}", val_addr);
 
 		unsafe {
 			ptr::write(val_addr, val);
@@ -46,12 +46,14 @@ impl<T> Vec<T> {
 	}
 
 	pub fn swap(&mut self, i: usize, j: usize) {
-		assert!(i >= 0 && i < self.len, "first index is out of bounds");
-		assert!(j >= 0 && j < self.len, "second index is out bounds");
+		assert!(i < self.len, "first index is out of bounds");
+		assert!(j < self.len, "second index is out bounds");
 
-		if (i != j) {
+		if i != j {
 			let i_addr = self.buf.wrapping_add(i);
 			let j_addr = self.buf.wrapping_add(j);
+
+			println!("swapping elements {} @{:p} <=> {} @{:p}", i, i_addr, j, j_addr);
 
 			unsafe {
 				ptr::swap_nonoverlapping(i_addr, j_addr, 1);
@@ -64,8 +66,10 @@ impl<T> Vec<T> {
 			None
 		} else {
 			// we can use mem::uninitialized or zeroed to create temporary value
-			let val_ptr = self.buf.wrapping_add(self.len - 1);
 			self.len -= 1;
+			let val_ptr = self.buf.wrapping_add(self.len);
+
+			println!("popping element at addr: {:p}", val_ptr);
 
 			unsafe {
 				// may be we should use mem::forget/mem::drop to properly release
@@ -90,6 +94,14 @@ impl<T> ops::Deref for Vec<T> {
 		unsafe {
 			slice::from_raw_parts(self.buf, self.len)
 		}
+	}
+}
+
+impl<T> Drop for Vec<T> {
+	fn drop(&mut self) {
+		println!("deallocating vector buf: {:p}", self.buf);
+
+		alloc::dealloc(self.buf as *mut u8);
 	}
 }
 
