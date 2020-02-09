@@ -45,6 +45,35 @@ impl<T> Vec<T> {
 		self.len += 1;
 	}
 
+	pub fn swap(&mut self, i: usize, j: usize) {
+		assert!(i >= 0 && i < self.len, "first index is out of bounds");
+		assert!(j >= 0 && j < self.len, "second index is out bounds");
+
+		if (i != j) {
+			let i_addr = self.buf.wrapping_add(i);
+			let j_addr = self.buf.wrapping_add(j);
+
+			unsafe {
+				ptr::swap_nonoverlapping(i_addr, j_addr, 1);
+			}
+		}
+	}
+
+	pub fn pop(&mut self) -> Option<T> {
+		if self.len == 0 {
+			None
+		} else {
+			// we can use mem::uninitialized or zeroed to create temporary value
+			let val_ptr = self.buf.wrapping_add(self.len - 1);
+			self.len -= 1;
+
+			unsafe {
+				// may be we should use mem::forget/mem::drop to properly release
+				Some(ptr::read(val_ptr))
+			}
+		}
+	}
+
 	pub fn len(&self) -> usize {
 		self.len
 	}
@@ -127,5 +156,39 @@ mod tests {
 		}
 
 		assert_eq!(1, tasks_slice[0].tid);
+
+		// copying state of task
+		let another_task = Task {
+			tid: 2,
+			state: TaskState {
+				..tasks[0].state
+			}
+		};
+
+		tasks.push(another_task);
+
+		assert_eq!(2, tasks.len());
+
+		tasks.swap(0, 1);
+
+		assert_eq!(2, tasks[0].tid);
+		assert_eq!(1, tasks[1].tid);
+		assert_eq!(2, tasks.len);
+
+		let popped_task = tasks.pop();
+		match popped_task {
+			Some(t) => assert_eq!(1, t.tid),
+			None => panic!("none returned")
+		}
+		assert_eq!(1, tasks.len());
+	}
+
+	#[test]
+	#[should_panic]
+	fn test_vec_checks() {
+		let mut tasks: Vec<Task> = Vec::new(4);
+
+		// should panic here
+		tasks.swap(0, 1);
 	}
 }
