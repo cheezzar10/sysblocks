@@ -13,7 +13,7 @@ pub struct Vec<T> {
 }
 
 impl<T> Vec<T> {
-	pub fn new() -> Vec<T> {
+	pub const fn new() -> Vec<T> {
 		Vec {
 			buf: ptr::null_mut(),
 			len: 0,

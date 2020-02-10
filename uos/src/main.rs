@@ -9,6 +9,7 @@ use std::slice;
 use uos::util::RingBuf;
 use uos::alloc;
 use uos::vec;
+use uos::lock;
 
 static mut KBD_BUF: RingBuf = RingBuf::new();
 
@@ -60,6 +61,8 @@ impl fmt::Display for Point {
 	}
 }
 
+static TASKS: lock::Mutex<vec::Vec<Process>> = lock::Mutex::new(vec::Vec::new());
+
 fn main() {
 	byte_arrays_check();
 	int_arrays_check();
@@ -95,11 +98,24 @@ fn main() {
 		// match running process 
 
 		test_allocator();
-
-		test_tasks_vector();
-
-		test_points_vector();
 	}
+
+	test_tasks_vector();
+
+	test_points_vector();
+
+	test_task_mutex(1);
+}
+
+fn test_task_mutex(pid: usize) {
+	println!("\n*** vector mutex test");
+
+	// TODO may be run several threads which will add several items to vector
+	let mut tasks_lock = TASKS.lock();
+
+	tasks_lock.push(Process { pid: pid, state: ProcessState { ..NULL_PROC_STATE } });
+
+	println!("process pid: {}", tasks_lock[0].pid);
 }
 
 fn test_tasks_vector() {
