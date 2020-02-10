@@ -103,7 +103,7 @@ fn main() {
 }
 
 fn test_tasks_vector() {
-	let procs: vec::Vec<Process> = vec::Vec::new(16);
+	let procs: vec::Vec<Process> = vec::Vec::with_cap(16);
 
 	println!("\n*** tasks vector test ***");
 
@@ -121,7 +121,7 @@ fn test_points_vector() {
 	let p1 = Point { x: 11, y: 22 };
 	println!("p1 = {}", p1);
 
-	let mut points: vec::Vec<Point> = vec::Vec::new(8);
+	let mut points: vec::Vec<Point> = vec::Vec::with_cap(8);
 	points.push(p1);
 
 	// vector is now the owner of p1
