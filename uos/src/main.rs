@@ -5,6 +5,7 @@ extern crate uos;
 use std::mem;
 use std::fmt;
 use std::slice;
+use std::thread;
 
 use uos::util::RingBuf;
 use uos::alloc;
@@ -104,12 +105,23 @@ fn main() {
 
 	test_points_vector();
 
-	test_task_mutex(1);
+	println!("\n*** vector mutex test ***");
+
+	let t1 = thread::spawn(|| {
+		test_task_mutex(1);
+	});
+
+	let t2 = thread::spawn(|| {
+		test_task_mutex(2);
+	});
+
+	t1.join();
+	t2.join();
+
+	println!("\n*** vector mutex test end ***");
 }
 
 fn test_task_mutex(pid: usize) {
-	println!("\n*** vector mutex test");
-
 	// TODO may be run several threads which will add several items to vector
 	let mut tasks_lock = TASKS.lock();
 
