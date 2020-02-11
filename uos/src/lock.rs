@@ -41,7 +41,7 @@ impl<T> Mutex<T> {
 	}
 }
 
-impl<'a, T> ops::Deref for MutexGuard<'a, T> {
+impl<T> ops::Deref for MutexGuard<'_, T> {
 	type Target = T;
 
 	fn deref(&self) -> &T {
@@ -51,7 +51,7 @@ impl<'a, T> ops::Deref for MutexGuard<'a, T> {
 	}
 }
 
-impl<'a, T> ops::DerefMut for MutexGuard<'a, T> {
+impl<T> ops::DerefMut for MutexGuard<'_, T> {
 	fn deref_mut(&mut self) -> &mut T {
 		unsafe {
 			&mut *self.mutex.guarded.get()
@@ -59,7 +59,7 @@ impl<'a, T> ops::DerefMut for MutexGuard<'a, T> {
 	}
 }
 
-impl<'a, T> Drop for MutexGuard<'a, T> {
+impl<T> Drop for MutexGuard<'_, T> {
 	fn drop(&mut self) {
 		self.mutex.unlock()
 	}
