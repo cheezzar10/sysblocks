@@ -1,9 +1,10 @@
 use std::sync::atomic;
 use std::thread;
 use std::ops;
+use std::cell;
 
 pub struct Mutex<T> {
-	guarded: T,
+	guarded: cell::UnsafeCell<T>,
 	lock: atomic::AtomicBool
 }
 
@@ -14,7 +15,7 @@ pub struct MutexGuard<'a, T> {
 impl<T> Mutex<T> {
 	pub const fn new(obj: T) -> Mutex<T> {
 		Mutex {
-			guarded: obj,
+			guarded: cell::UnsafeCell::new(obj),
 			lock: atomic::AtomicBool::new(false)
 		}
 	}
@@ -44,16 +45,16 @@ impl<'a, T> ops::Deref for MutexGuard<'a, T> {
 	type Target = T;
 
 	fn deref(&self) -> &T {
-		&self.mutex.guarded
+		unsafe {
+			&*self.mutex.guarded.get()
+		}
 	}
 }
 
 impl<'a, T> ops::DerefMut for MutexGuard<'a, T> {
 	fn deref_mut(&mut self) -> &mut T {
-		let mtx_mut_ptr: *mut Mutex<T> = (self.mutex as *const Mutex<T>) as *mut Mutex<T>;
-
 		unsafe {
-			&mut (*mtx_mut_ptr).guarded
+			&mut *self.mutex.guarded.get()
 		}
 	}
 }
