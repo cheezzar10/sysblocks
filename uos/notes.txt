@@ -29,3 +29,7 @@ $ rustup component list
 installing new component
 
 $ rustup component add rls-preview
+
+on ubuntu it's recommended to have build-essential package installed
+
+$ sudo apt install build-essential libc6-dev libc6-dev-i686
