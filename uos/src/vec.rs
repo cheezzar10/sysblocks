@@ -105,6 +105,14 @@ impl<T> Vec<T> {
 		}
 	}
 
+	pub fn swap_remove(&mut self, i: usize) -> T {
+		assert!(i < self.len, "to remove element index is out of bounds");
+
+		self.swap(i, self.len - 1);
+
+		self.pop().unwrap()
+	}
+
 	pub fn pop(&mut self) -> Option<T> {
 		if self.len == 0 {
 			None
@@ -237,6 +245,21 @@ mod tests {
 			None => panic!("none returned")
 		}
 		assert_eq!(1, tasks.len());
+
+		let task03 = Task {
+			tid: 3,
+			state: TaskState {
+				..tasks[0].state
+			}
+		};
+
+		tasks.push(task03);
+
+		assert_eq!(2, tasks.len());
+		assert_eq!(3, tasks[1].tid);
+
+		let removed_task = tasks.swap_remove(0);
+		assert_eq!(2, removed_task.tid);
 	}
 
 	#[test]
