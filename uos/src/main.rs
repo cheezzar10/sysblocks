@@ -12,7 +12,7 @@ use uos::alloc;
 use uos::vec;
 use uos::lock;
 
-static mut KBD_BUF: RingBuf = RingBuf::new();
+static KBD_BUF: RingBuf = RingBuf::new();
 
 struct Process {
 	pid: usize,

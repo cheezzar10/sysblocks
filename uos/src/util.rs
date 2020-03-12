@@ -1,37 +1,69 @@
-const RING_BUF_LEN: usize = 16;
+use std::sync::atomic::{ AtomicUsize, Ordering };
+use std::cell::{ RefCell };
+
+const RING_BUF_SIZE: usize = 16;
 
 pub struct RingBuf {
-	buf: [u8; RING_BUF_LEN],
-	rpos: usize,
-	wpos: usize
+	buf: RefCell<[u8; RING_BUF_SIZE]>,
+	rpos: AtomicUsize,
+	wpos: AtomicUsize
 }
 
 impl RingBuf {
 	pub const fn new() -> RingBuf {
-		RingBuf { buf: [0; RING_BUF_LEN], rpos: 0, wpos: 0 }
+		RingBuf { 
+			buf: RefCell::new([0; RING_BUF_SIZE]),
+			rpos: AtomicUsize::new(0),
+			wpos: AtomicUsize::new(0)
+		}
 	}
 
-	pub fn push_back(&mut self, b: u8) {
-		self.buf[self.wpos] = b;
-		Self::adv(&mut self.wpos);
+	pub fn push_back(&self, b: u8) {
+		self.write_buf(b);
+		Self::inc(&self.wpos);
 	}
 
-	pub fn pop_front(&mut self) -> Option<u8> {
-		if self.rpos == self.wpos {
+	// reducing mutable reference scope
+	fn write_buf(&self, b: u8) {
+		let mut buf_ref = self.buf.borrow_mut();
+		buf_ref[self.wpos.load(Ordering::SeqCst)] = b;
+	}
+
+	pub fn pop_front(&self) -> Option<u8> {
+		let rpos = self.rpos.load(Ordering::SeqCst);
+
+		if rpos == self.wpos.load(Ordering::SeqCst){
 			None
 		} else {
-			let rv = Some(self.buf[self.rpos]);
-			Self::adv(&mut self.rpos);
+			let rv = Some(self.read_buf(rpos));
+			Self::inc(&self.rpos);
 			rv
 		}
 	}
 
-	fn adv(pos: &mut usize) {
-		if ((*pos + 1) & RING_BUF_LEN) != 0 {
-			// wrapping buffer position around
-			*pos = 0;
-		} else {
-			*pos += 1;
+	fn read_buf(&self, pos: usize) -> u8 {
+		let buf_ref = self.buf.borrow();
+		buf_ref[pos]
+	}
+
+	fn inc(pos: &AtomicUsize) {
+		loop {
+			let curr_pos = pos.load(Ordering::SeqCst);
+
+			let new_pos = if ((curr_pos + 1) % RING_BUF_SIZE) != 0 {
+				// wrapping buffer position around
+				0
+			} else {
+				curr_pos + 1
+			};
+
+			let prev_pos = pos.compare_and_swap(curr_pos, new_pos, Ordering::SeqCst);
+			if prev_pos != curr_pos {
+				continue;
+			}
 		}
 	}
 }
+
+// may fail actually if writer and reader threads will be overlapped
+unsafe impl Sync for RingBuf {}
