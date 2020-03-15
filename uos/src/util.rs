@@ -32,7 +32,7 @@ impl RingBuf {
 	pub fn pop_front(&self) -> Option<u8> {
 		let rpos = self.rpos.load(Ordering::SeqCst);
 
-		if rpos == self.wpos.load(Ordering::SeqCst){
+		if rpos == self.wpos.load(Ordering::SeqCst) {
 			None
 		} else {
 			let rv = Some(self.read_buf(rpos));
@@ -42,15 +42,21 @@ impl RingBuf {
 	}
 
 	fn read_buf(&self, pos: usize) -> u8 {
-		let buf_ref = self.buf.borrow();
-		buf_ref[pos]
+		loop {
+			let borrow_attempt_res = self.buf.try_borrow();
+
+			if let Ok(buf_ref) = borrow_attempt_res {
+				return buf_ref[pos]
+			}
+			// TODO here we should spin or suspend current task to make writer chance to make their work
+		}
 	}
 
 	fn inc(pos: &AtomicUsize) {
 		loop {
 			let curr_pos = pos.load(Ordering::SeqCst);
 
-			let new_pos = if ((curr_pos + 1) % RING_BUF_SIZE) != 0 {
+			let new_pos = if ((curr_pos + 1) % RING_BUF_SIZE) == 0 {
 				// wrapping buffer position around
 				0
 			} else {
@@ -58,8 +64,8 @@ impl RingBuf {
 			};
 
 			let prev_pos = pos.compare_and_swap(curr_pos, new_pos, Ordering::SeqCst);
-			if prev_pos != curr_pos {
-				continue;
+			if prev_pos == curr_pos {
+				break;
 			}
 		}
 	}
@@ -67,3 +73,30 @@ impl RingBuf {
 
 // may fail actually if writer and reader threads will be overlapped
 unsafe impl Sync for RingBuf {}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_ring_buf() {
+		let kbd_buf = RingBuf::new();
+
+		let missing_byte = kbd_buf.pop_front();
+		if let Some(_) = missing_byte {
+			panic!("attempt to get something from empty buffer returned something");
+		}
+
+		kbd_buf.push_back(b'p');
+		kbd_buf.push_back(b's');
+
+		// checking that we can read what has been written to buffer
+		let some_byte = kbd_buf.pop_front();
+		// println!("popped byte: {}", some_byte);
+		assert_eq!(Some(b'p'), some_byte);
+		assert_eq!(Some(b's'), kbd_buf.pop_front());
+
+		// checking that buf is empty after reading all available bytes
+		assert_eq!(None, kbd_buf.pop_front());
+	}
+}

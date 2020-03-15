@@ -6,6 +6,7 @@ use std::mem;
 use std::fmt;
 use std::slice;
 use std::thread;
+use std::time::{ Duration };
 
 use uos::util::RingBuf;
 use uos::alloc;
@@ -68,15 +69,9 @@ fn main() {
 	byte_arrays_check();
 	int_arrays_check();
 
+	test_keybord_buffer();
+
 	unsafe {
-		KBD_BUF.push_back(b'a');
-
-		let ob = KBD_BUF.pop_front();
-		print_buf_byte(&ob);
-
-		let ob = KBD_BUF.pop_front();
-		print_buf_byte(&ob);
-
 		let mut proc_ref: &mut Process = &mut PROCS[0];
 		proc_ref.pid = 1;
 
@@ -119,6 +114,48 @@ fn main() {
 	t2.join();
 
 	println!("\n*** vector mutex test end ***");
+}
+
+fn test_keybord_buffer() {
+	let writer_thread = thread::spawn(|| {
+		for _ in 1..64 {
+			KBD_BUF.push_back(b's');
+			// giving chance to readers to complete theirs work
+			thread::sleep(Duration::from_millis(50));
+		}
+
+		println!("writer thread completed");
+	});
+
+	let reader_thread = thread::spawn(|| {
+		for _ in 1..1024 {
+			let byte = KBD_BUF.pop_front();
+			if let Some(b) = byte {
+				assert_eq!(b's', b);
+			}
+
+			thread::sleep(Duration::from_millis(1));
+		}
+
+		println!("reader thread completed");
+	});
+
+	writer_thread.join();
+	reader_thread.join();
+
+	let ob = KBD_BUF.pop_front();
+	print_buf_byte(&ob);
+
+	let ob = KBD_BUF.pop_front();
+	print_buf_byte(&ob);
+}
+
+fn print_buf_byte(ob: &Option<u8>) {
+	if let Some(b) = ob {
+		println!("byte: {:x}", b);
+	} else {
+		println!("buffer underflow");
+	}
 }
 
 fn test_task_mutex(pid: usize) {
@@ -225,14 +262,6 @@ unsafe fn test_allocator() {
 	allocator.dealloc(ring_buf2 as *mut u8);
 
 	println!("\n*** sequential allocator test end ***");
-}
-
-fn print_buf_byte(ob: &Option<u8>) {
-	if let Some(b) = ob {
-		println!("byte: {:x}", b);
-	} else {
-		println!("buffer underflow");
-	}
 }
 
 fn byte_arrays_check() {
