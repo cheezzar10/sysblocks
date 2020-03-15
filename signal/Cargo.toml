@@ -1,0 +1,7 @@
+[package]
+name = "signal"
+version = "0.1.0"
+authors = ["andrey <andrey@aurora.local>"]
+
+[dependencies]
+libc = "0.2"
