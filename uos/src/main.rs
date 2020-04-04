@@ -7,6 +7,8 @@ use std::fmt;
 use std::slice;
 use std::thread;
 use std::time::{ Duration };
+use std::ptr;
+use std::str;
 
 use uos::util::RingBuf;
 use uos::alloc;
@@ -114,6 +116,53 @@ fn main() {
 	t2.join();
 
 	println!("\n*** vector mutex test end ***");
+
+	println!("\n*** command buffer test ***");
+
+	// let mut cmd_buf: [u8; 16] = [0; 16];
+	let mut cmd_buf: vec::Vec<u8> = vec::Vec::with_cap(64);
+	console_read_line(&mut cmd_buf);
+
+	// let lf_idx = cmd_buf.iter().enumerate().find(|&(i, &c)| c == 0);
+	// here we can use str::from_utf_8 and convert byte slice to string
+	// let lf_idx = cmd_buf.find(b'\n');
+
+	/*
+	if let Some((i, _)) = lf_idx {
+		println!("LF index: {}", i);
+
+		let cmd = &cmd_buf[..i];
+		println!("command: '{:?}'", cmd);
+
+		if cmd == b"ps" {
+			println!("printing process table");
+		}
+	}
+	*/
+	let cmd = str::from_utf8(&cmd_buf).unwrap();
+	if cmd == "ps" {
+		println!("printing process table");
+	}
+
+	print_slice(&cmd_buf);
+
+	println!("\n*** command buffer test end ***");
+}
+
+fn console_read_line(buf: &mut vec::Vec<u8>) {
+	println!("buf len: {}", buf.len());
+	println!("buf cap: {}", buf.cap());
+
+	let cmd = b"ps";
+	println!("command len: {}", cmd.len());
+
+	buf.clear();
+
+	for c in cmd.iter() {
+		buf.push(*c);
+	}
+
+	// unsafe { ptr::copy_nonoverlapping(cmd.as_ptr(), buf.as_mut_ptr(), cmd.len()); }
 }
 
 fn test_keybord_buffer() {

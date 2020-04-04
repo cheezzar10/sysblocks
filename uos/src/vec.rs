@@ -130,6 +130,10 @@ impl<T> Vec<T> {
 		}
 	}
 
+	pub fn clear(&mut self) {
+		self.len = 0
+	}
+
 	pub fn len(&self) -> usize {
 		self.len
 	}
@@ -260,6 +264,10 @@ mod tests {
 
 		let removed_task = tasks.swap_remove(0);
 		assert_eq!(2, removed_task.tid);
+
+		tasks.clear();
+		assert_eq!(0, tasks.len());
+		assert_eq!(16, tasks.cap());
 	}
 
 	#[test]
