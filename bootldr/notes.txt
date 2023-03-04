@@ -1,0 +1,21 @@
+checking boot loader code validity in debugger
+
+building test bootloader binary for debugging
+
+> nasm bootldr.asm -f bin -o bootldr.com
+
+loading debugger
+
+> debug bootldr.com
+
+disassembling
+
+- u
+
+running code till the breakpoint
+
+- g 13f
+
+displaying local variables content (top 32 bytes of the stack )
+
+- d ffe0 L20
