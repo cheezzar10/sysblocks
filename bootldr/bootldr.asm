@@ -21,7 +21,6 @@ mov ch, 0
 mov cl, 1
 mov al, 1
 
-; hdd 0
 mov dl, HDD_1
 
 int 13h
@@ -136,6 +135,33 @@ shl dx, 1
 add sp, 200h
 ; allocating root directory entries table buffer
 sub sp, dx
+
+; root directory table size in sectors
+mov cx, 9
+shr dx, cl
+
+; reading root directory table
+; read(head=chs_head, track=chs_track, sector=chs_sector, count=dl)
+
+mov dh, [chs_head]
+
+mov cx, 0
+; add check that sector + count < sector_max
+mov cl, [chs_sector]
+inc cx
+
+; chs_track is 2 bytes long and high byte low 2 bits should be combined with starting sector number ( cl )
+mov ch, [chs_track]
+
+mov al, dl
+mov dl, HDD_1
+
+; read buffer allocated on stack
+mov bx, sp
+
+mov ah, READ_SECTORS
+int 13h
+
 
 ; searching for file with name KILL
 file_search:
