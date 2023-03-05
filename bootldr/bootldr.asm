@@ -15,14 +15,14 @@ sub sp, 21ch
 mov bx, sp
 
 ; read(head=0, track=0, sector=1, count=1)
-mov ah, 02h
+mov ah, READ_SECTORS
 mov dh, 0
 mov ch, 0
 mov cl, 1
 mov al, 1
 
 ; hdd 0
-mov dl, 81h
+mov dl, HDD_1
 
 int 13h
 
@@ -30,10 +30,10 @@ int 13h
 mov bx, sp
 mov cx, [bx+01c6h]
 ; partition 1 MBR offset ( sector 0x3f )
-mov [bp-6], cx
+mov [bp-PARTITION_1_MBR_OFFSET_VAR], cx
 
 ; get disk 0 geometry
-mov ah, 08h
+mov ah, GET_DRIVE_PARAMETERS
 int 13h
 
 ; disk_heads = disc_head_max + 1 ( = 16 )
@@ -43,7 +43,7 @@ mov [bp-1], dh
 ; sectors per track ( = 63 )
 mov al, cl
 and al, 3fh
-mov [bp-2], al
+mov [bp-SECTORS_PER_TRACK_VAR], al
 
 ; sectors_per_cylinder = sectors_per_track x disk_heads ( === 1008 )
 mul dh
@@ -59,16 +59,13 @@ mov al, ch
 mov [bp-4], ax
 
 ; load first partition MBR using offset
-
-; load sectors per cluster ( byte offset 0x0d === 4 )
-; number of FAT tables ( byte offset 0x10 === 2 )
-; number of root directory entries ( 2 bytes offset 0x11 === 512 ( 32 bytes each entry ) )
-; number of FAT sectors ( 2 bytes offset 0x16 === 136 )
-
 ; 0x7e00 MBR
 
+; extract this code to special function get_chs(sector offset stored in ax)
+; result will be returned in global buffer
+
 ; track_number = ( offset / sectors_per_cylinder )
-mov ax, [bp-6]
+mov ax, [bp-PARTITION_1_MBR_OFFSET_VAR]
 mov dx, 0
 mov cx, [bp-8]
 div cx
@@ -78,7 +75,7 @@ mov [bp-0ah], ax
 
 ; ( offset % sectors_per_cylinder ) / sectors_per_track
 mov ax, dx
-mov cl, [bp-2]
+mov cl, [bp-SECTORS_PER_TRACK_VAR]
 div cl
 
 ; head number = al
@@ -112,14 +109,52 @@ mov al, 1
 mov bx, sp
 
 ; reading hdd 1
-mov dl, 81h
+mov dl, HDD_1
 
-; read function 02h
-mov ah, 02h
+; read sectors function
+mov ah, READ_SECTORS
 
 int 13h
 
-; read directory offset and load it into memory ( allocate block on stack )
+; load sectors per cluster ( byte offset 0x0d === 4 )
+
+; number of FAT tables ( byte offset 0x10 === 2 )
+mov cx, 0
+mov si, sp
+mov cl, [si+FAT_TABLES_COUNT_MBR_OFFSET]
+; number of FAT sectors ( 2 bytes offset 0x16 === 6 )
+
+mov ax, 0
+; summing FAT sectors count x FAT tables count times 
+root_dir_offset_loop: 
+add ax, [si+FAT_SECTORS_COUNT_MBR_OFFSET]
+loop root_dir_offset_loop
+
+; adding MBR offset
+add ax, [bp-PARTITION_1_MBR_OFFSET_VAR]
+
+; + MBR size = 1 sector
+inc ax
+
+; number of root directory entries ( 2 bytes offset 0x11 === 512 ( 32 bytes each entry ) )
+mov cx, [si+ROOT_DIR_ENTRIES_COUNT]
+
+; calculating root directory table size in bytes
+mov dx, cx
+; each entry is 4 bytes long
+shl dx, 1
+shl dx, 1
+
+; deallocating MBR buffer
+add sp, 200h
+; allocating root dicrectory table buffer
+sub sp, dx
+
+; searching for file with name KILL
+file_search:
+
+
+; calculate root directory size and load into stack allocated buffer
 ; search for loader.sys and determine it's first cluster offset
 ; also, read file size and how many iterations we need to read all it's clusters
 
@@ -127,3 +162,13 @@ int 13h
 mov ah, 04ch
 mov al, cl
 int 21h
+
+[section .data]
+PARTITION_1_MBR_OFFSET_VAR equ 6
+SECTORS_PER_TRACK_VAR equ 2
+READ_SECTORS equ 02h
+HDD_1 equ 81h
+GET_DRIVE_PARAMETERS equ 08h
+FAT_TABLES_COUNT_MBR_OFFSET equ 10h
+FAT_SECTORS_COUNT_MBR_OFFSET equ 16h
+ROOT_DIR_ENTRIES_COUNT equ 11h

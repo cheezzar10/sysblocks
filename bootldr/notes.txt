@@ -19,3 +19,36 @@ running code till the breakpoint
 displaying local variables content (top 32 bytes of the stack )
 
 - d ffe0 L20
+
+also, it's possible to use INT 13h "extensions"
+new functions with numbers from 41h to 48h
+where 48h is the new "Get drive parameters" function
+
+example: reading extended drive parameters
+
+mov ah, 48h
+mov si, <extended parameters buffer address>
+mov dl, <drive no>
+mov <extended parameters buffer>.bResultSize(offset 0x0) = 0x1e
+
+ExtendedGetParams struct
+
+word bResultSize
+word infoFlags
+dword cylNumber
+dword headNumber
+dword sectorsPerTrack
+qword totalSectors
+word bytesPerSector
+
+mov ah, 42h
+mov si, <data address packet structure address>
+mov dl, <drive no>
+
+DiskAddressPacket
+byte packetSize = size of structure 0x10
+byte reserved
+word sectorsToTransfer
+dword targetBuffer ( segment:offset of the data buffer ) !!! segment is higher order bytes so it goes +2 bytes higher in mem 
+qword LBA address of the starting sector
+
