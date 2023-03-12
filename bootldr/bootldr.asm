@@ -113,7 +113,7 @@ root_dir_offset_loop:
 add ax, [si+FAT_SECTORS_COUNT_MBR_OFFSET]
 loop root_dir_offset_loop
 
-; adding MBR offset
+; adding MBR offset ( 2 x 0x6 + 0x3f = 0x4c )
 add ax, [bp-PARTITION_1_MBR_OFFSET_VAR]
 
 ; + MBR size = 1 sector
@@ -123,22 +123,20 @@ inc ax
 call get_chs
 
 ; number of root directory entries ( 2 bytes offset 0x11 === 512 ( 32 bytes each entry ) )
-mov cx, [si+ROOT_DIR_ENTRIES_COUNT]
-
-; calculating root directory table size in bytes
-mov dx, cx
-; each entry is 4 bytes long
-shl dx, 1
-shl dx, 1
-
-; deallocating MBR buffer
-add sp, 200h
-; allocating root directory entries table buffer
-sub sp, dx
+mov dx, [si+ROOT_DIR_ENTRIES_COUNT_MBR_OFFSET]
+mov [bp-ROOT_DIR_ENTRIES_COUNT_VAR], dx
 
 ; root directory table size in sectors
-mov cx, 9
+; root_dir_entries_count x 32 / 512 it's the same as root_dir_entries_count >> 7
+mov cx, 4
 shr dx, cl
+mov [bp-ROOT_DIR_TABLE_SIZE_IN_SECTORS_VAR], dl
+
+; setting current root directory table sector index
+mov [bp-ROOT_DIR_TABLE_CURRENT_SECTOR_INDEX_VAR], dl
+
+; keeping current root dir entries table sector in var
+; dec [bp-current sector var]
 
 ; reading root directory table
 ; read(head=chs_head, track=chs_track, sector=chs_sector, count=dl)
@@ -146,34 +144,80 @@ shr dx, cl
 mov dh, [chs_head]
 
 mov cx, 0
-; add check that sector + count < sector_max
 mov cl, [chs_sector]
+; sectors count starts from 1
 inc cx
 
 ; chs_track is 2 bytes long and high byte low 2 bits should be combined with starting sector number ( cl )
 mov ch, [chs_track]
 
-mov al, dl
+; reading directory table by 1 sector
+mov al, 1
 mov dl, HDD_1
 
 ; read buffer allocated on stack
 mov bx, sp
 
+root_dir_table_read_loop:
+; reading current root directory table sector
 mov ah, READ_SECTORS
 int 13h
 
+; searching for file with the given name
+; using si as offset from 0x0 to 512 - 32
+; current root dir table entry index ( reversed, ROOT_DIR_ENTRIES_PER_SECTOR - first entry )
+mov word [bp-ROOT_DIR_TABLE_CURRENT_ENTRY_INDEX_VAR], ROOT_DIR_ENTRIES_PER_SECTOR
 
-; searching for file with name KILL
-file_search:
+file_search_loop:
+; clearing direction flag, going forward
+cld
+
+; pointer to the current directory entry
+mov si, bx
+; pointer to the file name
+mov di, FILE_NAME
+
+; comparing
+mov cx, FILE_NAME_LENGTH
+repe cmpsb
+
+; exiting from file search/root dicrectory sector loading loop
+je file_found
+
+; going to the next directory entry
+add bx, 20h
+
+; decrementing current root dir table entry index
+dec word [bp-ROOT_DIR_TABLE_CURRENT_ENTRY_INDEX_VAR]
+
+; end of file search loop in current root dir table sector
+jnz file_search_loop
+
+
+; indexes go down (3,2,1,0) , but sectors go up (1,2,3,4)
+dec byte [bp-ROOT_DIR_TABLE_CURRENT_SECTOR_INDEX_VAR]
+
+; end of root dir table sectors reading loop
+jnz root_dir_table_read_loop
+
+; if we are here, file not found
+file_not_found:
+mov ah, EXIT
+mov al, 0
+int 21h
+
+; read using loop, iterate through table sectors, loading them one by one
+; checking for sector/head limits crossing
 
 
 ; calculate root directory size and load into stack allocated buffer
 ; search for loader.sys and determine it's first cluster offset
 ; also, read file size and how many iterations we need to read all it's clusters
 
+file_found:
+mov ax, [bx+ROOT_DIR_ENTRY_FILE_STARTING_CLUSTER_OFFSET]
 
-mov ah, 04ch
-mov al, cl
+mov ah, EXIT
 int 21h
 
 ; get_chs(ax = global sector offset) returns result in global structure
@@ -198,19 +242,31 @@ mov [chs_sector], ah
 ret
 
 [section .data]
-; get_chs function return value will be stored here 01C0
+; get_chs function return value will be stored here
 chs_track dw 0
 chs_head db 0
 chs_sector db 0
 
-; constants
-PARTITION_1_MBR_OFFSET_VAR equ 6
-SECTORS_PER_TRACK_VAR equ 2
+; local variables on stack frame
 DISK_HEADS_COUNT_VAR equ 1
+SECTORS_PER_TRACK_VAR equ 2
+DISK_TRACKS_MAX_VAR equ 4
+PARTITION_1_MBR_OFFSET_VAR equ 6
 SECTORS_PER_CYLINDER_VAR equ 8
+ROOT_DIR_ENTRIES_COUNT_VAR equ 10
+ROOT_DIR_TABLE_SIZE_IN_SECTORS_VAR equ 11
+ROOT_DIR_TABLE_CURRENT_SECTOR_INDEX_VAR equ 12
+ROOT_DIR_TABLE_CURRENT_ENTRY_INDEX_VAR equ 14
+
 READ_SECTORS equ 02h
+EXIT equ 04ch
 HDD_1 equ 81h
 GET_DRIVE_PARAMETERS equ 08h
 FAT_TABLES_COUNT_MBR_OFFSET equ 10h
 FAT_SECTORS_COUNT_MBR_OFFSET equ 16h
-ROOT_DIR_ENTRIES_COUNT equ 11h
+ROOT_DIR_ENTRIES_COUNT_MBR_OFFSET equ 11h
+ROOT_DIR_ENTRIES_PER_SECTOR equ 16
+ROOT_DIR_ENTRY_FILE_STARTING_CLUSTER_OFFSET equ 01ah
+
+FILE_NAME db "KILL       "
+FILE_NAME_LENGTH equ $-FILE_NAME
